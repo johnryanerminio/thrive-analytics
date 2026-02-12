@@ -1749,16 +1749,19 @@ function dashboard() {
       this.uploadStatus = null;
       const formData = new FormData();
       let csvCount = 0;
+      let totalSize = 0;
       for (const f of fileList) {
         if (f.name.toLowerCase().endsWith('.csv')) {
           formData.append('files', f);
           csvCount++;
+          totalSize += f.size;
         }
       }
       if (!csvCount) {
         this.uploadStatus = { error: true, message: 'No .csv files selected' };
         return;
       }
+      this.uploadStatus = { error: false, message: `Uploading ${csvCount} file(s) (${this.formatSize(totalSize)})... please wait` };
       try {
         const r = await fetch('/api/upload', { method: 'POST', body: formData });
         if (!r.ok) {

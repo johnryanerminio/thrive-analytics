@@ -6,8 +6,11 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
+import json
+import math
+
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from app.data.store import DataStore
 from app.data.schemas import PeriodFilter
@@ -16,6 +19,31 @@ from app.reports import brand_dispensary, brand_facing
 from app.config import BRAND_REPORTS_FOLDER
 
 router = APIRouter(prefix="/api/brands", tags=["brands"])
+
+
+class _NanSafeEncoder(json.JSONEncoder):
+    def default(self, o):
+        try:
+            return super().default(o)
+        except TypeError:
+            return str(o)
+
+    def encode(self, o):
+        return super().encode(_clean(o))
+
+
+def _clean(obj):
+    if isinstance(obj, dict):
+        return {k: _clean(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_clean(v) for v in obj]
+    if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+        return 0.0
+    return obj
+
+
+def _safe_json(data: dict) -> JSONResponse:
+    return JSONResponse(content=_clean(data))
 
 
 @router.get("/{brand}/report")
@@ -29,7 +57,7 @@ def brand_report_json(
     data = brand_dispensary.generate_json(store, brand, period, comparison)
     if "error" in data:
         raise HTTPException(404, data["error"])
-    return data
+    return _safe_json(data)
 
 
 @router.get("/{brand}/report/excel")
@@ -63,7 +91,7 @@ def brand_facing_json(
     data = brand_facing.generate_json(store, brand, period)
     if "error" in data:
         raise HTTPException(404, data["error"])
-    return data
+    return _safe_json(data)
 
 
 @router.get("/{brand}/facing/excel")

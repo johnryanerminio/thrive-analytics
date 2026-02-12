@@ -48,18 +48,22 @@ def safe_series_divide(
 
 def sanitize_for_json(obj):
     """Recursively convert numpy/pandas types to native Python for JSON serialization."""
+    import math
     if isinstance(obj, dict):
         return {k: sanitize_for_json(v) for k, v in obj.items()}
-    if isinstance(obj, list):
+    if isinstance(obj, (list, tuple)):
         return [sanitize_for_json(v) for v in obj]
     if isinstance(obj, (np.integer,)):
         return int(obj)
     if isinstance(obj, (np.floating,)):
-        return 0.0 if np.isnan(obj) else float(obj)
+        v = float(obj)
+        return 0.0 if (math.isnan(v) or math.isinf(v)) else v
     if isinstance(obj, np.bool_):
         return bool(obj)
     if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    if isinstance(obj, float) and (np.isnan(obj) or np.isinf(obj)):
-        return 0.0
+        return sanitize_for_json(obj.tolist())
+    if isinstance(obj, float):
+        return 0.0 if (math.isnan(obj) or math.isinf(obj)) else obj
+    if pd.api.types.is_scalar(obj) and pd.isna(obj):
+        return None
     return obj

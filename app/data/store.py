@@ -133,16 +133,22 @@ class DataStore:
 
     def stores(self) -> list[str]:
         """Unique store names (cleaned)."""
+        if self.df.empty:
+            return []
         return sorted(self.df["store_clean"].dropna().unique().tolist())
 
     def brands(self) -> list[str]:
         """Unique brand names sorted by revenue desc."""
+        if self.df.empty:
+            return []
         regular = self.df[self.df["transaction_type"] == "REGULAR"]
         rev = regular.groupby("brand_clean")["actual_revenue"].sum().sort_values(ascending=False)
         return rev.index.tolist()
 
     def categories(self) -> list[str]:
         """Unique category names sorted alphabetically."""
+        if self.df.empty:
+            return []
         return sorted(self.df["category_clean"].dropna().unique().tolist())
 
     def date_range(self, period: PeriodFilter | None = None) -> str:
@@ -174,6 +180,8 @@ class DataStore:
         return len(self.df)
 
     def regular_count(self) -> int:
+        if self.df.empty:
+            return 0
         return (self.df["transaction_type"] == "REGULAR").sum()
 
     # ------------------------------------------------------------------

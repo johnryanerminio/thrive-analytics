@@ -9,6 +9,7 @@ import pandas as pd
 
 from app.data.store import DataStore
 from app.data.schemas import PeriodFilter
+from app.analytics.common import sanitize_for_json
 from app.analytics.budtenders import compute_sales_scores, budtender_summary
 from app.excel.writer import ExcelWriter
 from app.excel.styles import SECTION_FONT
@@ -46,12 +47,12 @@ def generate_json(store: DataStore, period: PeriodFilter | None = None) -> dict:
         store_bt = bt_clean[bt_clean["store_clean"] == s]
         by_store[s] = store_bt.to_dict("records")
 
-    return {
+    return sanitize_for_json({
         "date_range": store.date_range(period),
         "summary": summary,
         "all_rankings": bt_clean.to_dict("records"),
         "by_store": by_store,
-    }
+    })
 
 
 def generate_excel(

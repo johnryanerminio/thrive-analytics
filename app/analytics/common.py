@@ -44,3 +44,22 @@ def safe_series_divide(
 ) -> pd.Series:
     """Element-wise safe division for pandas Series."""
     return (numerator / denominator.replace(0, np.nan)).fillna(default)
+
+
+def sanitize_for_json(obj):
+    """Recursively convert numpy/pandas types to native Python for JSON serialization."""
+    if isinstance(obj, dict):
+        return {k: sanitize_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [sanitize_for_json(v) for v in obj]
+    if isinstance(obj, (np.integer,)):
+        return int(obj)
+    if isinstance(obj, (np.floating,)):
+        return 0.0 if np.isnan(obj) else float(obj)
+    if isinstance(obj, np.bool_):
+        return bool(obj)
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, float) and (np.isnan(obj) or np.isinf(obj)):
+        return 0.0
+    return obj

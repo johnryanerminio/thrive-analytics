@@ -11,7 +11,7 @@ import pandas as pd
 
 from app.data.store import DataStore
 from app.data.schemas import PeriodFilter
-from app.analytics.common import safe_divide
+from app.analytics.common import safe_divide, sanitize_for_json
 from app.analytics.margin import brand_margin_summary, brand_category_breakdown, discount_depth_distribution
 from app.analytics.deals import deal_summary
 from app.analytics.velocity import velocity_metrics, velocity_by_category, share_of_category, monthly_trend, share_of_category_trend
@@ -115,7 +115,7 @@ def generate_json(
                 "summary": comp_summary,
             }
 
-    return {
+    return sanitize_for_json({
         "brand": brand_name,
         "date_range": date_range,
         "period_label": period.label if period else "All Time",
@@ -133,7 +133,7 @@ def generate_json(
         "store_summary": store_summary,
         "recommendations": recs,
         "comparison": comparison,
-    }
+    })
 
 
 def _velocity_rank(brand_name: str, regular_df: pd.DataFrame, category: str) -> int:

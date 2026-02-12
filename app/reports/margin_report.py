@@ -10,6 +10,7 @@ import pandas as pd
 
 from app.data.store import DataStore
 from app.data.schemas import PeriodFilter
+from app.analytics.common import sanitize_for_json
 from app.analytics.margin import company_margin_totals, margin_by_group
 from app.excel.writer import ExcelWriter
 from app.excel.styles import SECTION_FONT
@@ -38,14 +39,14 @@ def generate_json(store: DataStore, period: PeriodFilter | None = None) -> dict:
     date_range = store.date_range(period)
     totals = company_margin_totals(regular)
 
-    return {
+    return sanitize_for_json({
         "date_range": date_range,
         "totals": totals,
         "by_store": margin_by_group(regular, "store_clean").fillna(0).to_dict("records"),
         "by_brand": margin_by_group(regular, "brand_clean").fillna(0).to_dict("records"),
         "by_category": margin_by_group(regular, "category_clean").fillna(0).to_dict("records"),
         "by_deal_type": margin_by_group(regular, "deal_type").fillna(0).to_dict("records"),
-    }
+    })
 
 
 def generate_excel(

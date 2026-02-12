@@ -12,7 +12,7 @@ import pandas as pd
 from app.data.store import DataStore
 from app.data.schemas import PeriodFilter
 from app.data.normalize import extract_reward_name
-from app.analytics.common import safe_divide
+from app.analytics.common import safe_divide, sanitize_for_json
 from app.excel.writer import ExcelWriter
 from app.excel.styles import SECTION_FONT
 
@@ -103,13 +103,13 @@ def generate_json(store: DataStore, period: PeriodFilter | None = None) -> dict:
         emp_sum["rank"] = range(1, len(emp_sum) + 1)
         markouts_by_employee = emp_sum.fillna(0).to_dict("records")
 
-    return {
+    return sanitize_for_json({
         "date_range": date_range,
         "summary": summary,
         "all_rewards": all_rewards,
         "rewards_by_store": rewards_by_store,
         "markouts_by_employee": markouts_by_employee,
-    }
+    })
 
 
 def generate_excel(

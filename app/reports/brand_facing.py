@@ -14,7 +14,7 @@ import pandas as pd
 
 from app.data.store import DataStore
 from app.data.schemas import PeriodFilter
-from app.analytics.common import safe_divide, calc_margin
+from app.analytics.common import safe_divide, calc_margin, sanitize_for_json
 from app.analytics.margin import brand_margin_summary
 from app.analytics.velocity import velocity_by_category, share_of_category, monthly_trend, share_of_category_trend
 from app.analytics.deals import expand_deals, promo_lift
@@ -104,7 +104,7 @@ def generate_json(
     # Trend
     trend = monthly_trend(brand_df)
 
-    return {
+    return sanitize_for_json({
         "brand": brand_name,
         "date_range": date_range,
         "period_label": period.label if period else "All Time",
@@ -119,7 +119,7 @@ def generate_json(
         "promotional_effectiveness": promo,
         "growth_opportunities": growth,
         "trend": trend,
-    }
+    })
 
 
 def _distribution_scorecard(

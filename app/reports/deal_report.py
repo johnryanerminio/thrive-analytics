@@ -9,6 +9,7 @@ import pandas as pd
 
 from app.data.store import DataStore
 from app.data.schemas import PeriodFilter
+from app.analytics.common import sanitize_for_json
 from app.analytics.deals import deal_type_summary, deal_summary, deal_summary_by_store, expand_deals
 from app.excel.writer import ExcelWriter
 from app.excel.styles import SECTION_FONT
@@ -30,12 +31,12 @@ def generate_json(store: DataStore, period: PeriodFilter | None = None) -> dict:
 
     # Expand deals once, reuse for both summaries
     expanded = expand_deals(regular)
-    return {
+    return sanitize_for_json({
         "date_range": date_range,
         "deal_types": deal_type_summary(regular),
         "top_deals": deal_summary(regular, top_n=50, _expanded=expanded),
         "by_store": deal_summary_by_store(regular, top_n=10, _expanded=expanded),
-    }
+    })
 
 
 def generate_excel(

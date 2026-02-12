@@ -1791,8 +1791,15 @@ function dashboard() {
         const res = await fetch('/api/reload', { method: 'POST' });
         if (!res.ok) throw new Error(await res.text());
         const r = await res.json();
-        this.health = await this.api('/api/health');
-        this.uploadStatus = { error: false, message: `Data reloaded: ${this.fmtN(r.rows)} rows` };
+        const [h, b, s] = await Promise.all([
+          this.api('/api/health'),
+          this.api('/api/brands'),
+          this.api('/api/stores'),
+        ]);
+        this.health = h;
+        this.brands = b.brands;
+        this.stores = s.stores;
+        this.uploadStatus = { error: false, message: `Data reloaded: ${this.fmtN(r.rows)} rows, ${s.stores.length} stores, ${b.brands.length} brands` };
       } catch (e) {
         this.uploadStatus = { error: true, message: 'Reload failed: ' + e.message };
       }

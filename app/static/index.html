@@ -1785,7 +1785,9 @@ function dashboard() {
     async reloadData() {
       this.dmReloading = true;
       try {
-        const r = await this.api('/api/reload', {});
+        const res = await fetch('/api/reload', { method: 'POST' });
+        if (!res.ok) throw new Error(await res.text());
+        const r = await res.json();
         this.health = await this.api('/api/health');
         this.uploadStatus = { error: false, message: `Data reloaded: ${this.fmtN(r.rows)} rows` };
       } catch (e) {

@@ -1,0 +1,11 @@
+inbox/
+archive/
+reports/
+brand_reports/
+uploads/
+shares/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+*.xlsx

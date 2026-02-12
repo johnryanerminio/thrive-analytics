@@ -1,0 +1,1818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thrive Analytics</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+  <style>[x-cloak]{display:none!important}table th{white-space:nowrap}</style>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: {
+        thrive: { 50:'#E8F5E9',100:'#C8E6C9',200:'#A5D6A7',400:'#66BB6A',500:'#4CAF50',700:'#388E3C',800:'#2E7D32',900:'#1B5E20' }
+      }}}
+    }
+  </script>
+</head>
+<body class="bg-gray-50 min-h-screen" x-data="dashboard()" x-init="init()">
+
+<!-- ═══════════════════ HEADER ═══════════════════ -->
+<header class="bg-thrive-900 text-white shadow-lg">
+  <div class="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
+    <h1 class="text-2xl font-bold tracking-widest">THRIVE ANALYTICS</h1>
+    <span class="text-sm text-green-200" x-show="health" x-text="fmtN(health?.rows)+' transactions | '+health?.stores+' stores | '+health?.brands+' brands'"></span>
+  </div>
+  <nav class="max-w-[1400px] mx-auto px-6 flex gap-1 pb-0">
+    <template x-for="[k,l] in [['overview','Overview'],['brands','Brand Explorer'],['facing','Brand Facing'],['master','Master Reports'],['datamanager','Data Manager']]">
+      <button @click="switchView(k)" :class="view===k?'bg-white text-thrive-900 font-semibold':'text-green-100 hover:bg-white/10'" class="px-5 py-2 rounded-t-lg text-sm transition-all" x-text="l"></button>
+    </template>
+  </nav>
+</header>
+
+<!-- ═══════════════════ TOOLBAR ═══════════════════ -->
+<div class="bg-white border-b shadow-sm sticky top-0 z-20">
+  <div class="max-w-[1400px] mx-auto px-6 py-3 flex flex-wrap items-center gap-3">
+    <!-- Period Type -->
+    <div class="flex rounded-lg border overflow-hidden text-sm">
+      <template x-for="[pt,l] in [['all','All Time'],['year','Year'],['quarter','Quarter'],['month','Month']]">
+        <button @click="periodType=pt;applyPeriod()" :class="periodType===pt?'bg-thrive-900 text-white':'bg-white text-gray-700 hover:bg-gray-50'" class="px-3 py-1.5 border-r last:border-r-0 transition" x-text="l"></button>
+      </template>
+    </div>
+    <!-- Year -->
+    <select x-show="periodType!=='all'" x-model.number="selectedYear" @change="applyPeriod()" class="border rounded px-2 py-1.5 text-sm">
+      <template x-for="y in [2024,2025,2026]"><option :value="y" x-text="y"></option></template>
+    </select>
+    <!-- Quarter -->
+    <select x-show="periodType==='quarter'" x-model.number="selectedQuarter" @change="applyPeriod()" class="border rounded px-2 py-1.5 text-sm">
+      <template x-for="q in [1,2,3,4]"><option :value="q" x-text="'Q'+q"></option></template>
+    </select>
+    <!-- Month -->
+    <select x-show="periodType==='month'" x-model.number="selectedMonth" @change="applyPeriod()" class="border rounded px-2 py-1.5 text-sm">
+      <template x-for="[m,l] in [[1,'Jan'],[2,'Feb'],[3,'Mar'],[4,'Apr'],[5,'May'],[6,'Jun'],[7,'Jul'],[8,'Aug'],[9,'Sep'],[10,'Oct'],[11,'Nov'],[12,'Dec']]">
+        <option :value="m" x-text="l"></option>
+      </template>
+    </select>
+
+    <div class="w-px h-6 bg-gray-300" x-show="view==='brands'||view==='facing'"></div>
+
+    <!-- Brand Search -->
+    <div x-show="view==='brands'||view==='facing'" class="relative" @click.outside="showBrandDD=false">
+      <input type="text" x-model="brandSearch" @focus="showBrandDD=true" @input="showBrandDD=true"
+        placeholder="Search brand..." class="border rounded px-3 py-1.5 text-sm w-56 focus:ring-2 focus:ring-thrive-400 focus:outline-none">
+      <div x-show="showBrandDD && filteredBrands.length" x-cloak
+        class="absolute top-full left-0 mt-1 bg-white border rounded-lg shadow-lg max-h-64 overflow-y-auto w-72 z-30">
+        <template x-for="b in filteredBrands" :key="b">
+          <button @click="selectBrand(b)" class="block w-full text-left px-3 py-2 text-sm hover:bg-thrive-50 transition"
+            :class="selectedBrand===b?'bg-thrive-50 font-semibold':''" x-text="b"></button>
+        </template>
+      </div>
+    </div>
+
+    <!-- Store Filter -->
+    <select x-model="selectedStore" @change="applyPeriod()" class="border rounded px-2 py-1.5 text-sm">
+      <option value="">All Stores</option>
+      <template x-for="s in stores"><option :value="s" x-text="s"></option></template>
+    </select>
+  </div>
+</div>
+
+<!-- LOADING BAR -->
+<div x-show="loading" x-cloak class="fixed top-0 left-0 w-full h-1.5 z-50 bg-green-100 overflow-hidden">
+  <div class="h-full bg-thrive-500 rounded-r animate-loading-bar"></div>
+</div>
+<style>
+@keyframes loading-bar { 0%{width:0;margin-left:0} 50%{width:60%;margin-left:20%} 100%{width:0;margin-left:100%} }
+.animate-loading-bar { animation: loading-bar 1.8s ease-in-out infinite; }
+</style>
+
+<!-- ERROR -->
+<div x-show="error" x-cloak class="max-w-[1400px] mx-auto px-6 mt-4">
+  <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex justify-between items-center">
+    <span x-text="error"></span>
+    <button @click="error=null" class="ml-4 text-red-400 hover:text-red-600 text-xl leading-none">&times;</button>
+  </div>
+</div>
+
+<!-- ═══════════════════ MAIN CONTENT ═══════════════════ -->
+<main class="max-w-[1400px] mx-auto px-6 py-6">
+
+<!-- ════════════════════════════════════════════════════
+     OVERVIEW
+     ════════════════════════════════════════════════════ -->
+<section x-show="view==='overview'" x-cloak>
+  <!-- Loading state -->
+  <div x-show="loading && !overviewData" class="flex flex-col items-center justify-center py-32 text-gray-400">
+    <svg class="w-12 h-12 animate-spin text-thrive-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+    </svg>
+    <p class="text-lg font-medium text-gray-500">Loading overview data...</p>
+    <p class="text-sm text-gray-400 mt-1">Crunching 4.8M+ transactions</p>
+  </div>
+  <template x-if="overviewData">
+    <div>
+      <!-- KPI Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+        <div class="bg-white rounded-xl border p-4 shadow-sm">
+          <div class="text-xs text-gray-500 uppercase tracking-wide">Total Revenue</div>
+          <div class="text-2xl font-bold text-thrive-900 mt-1" x-text="fmt(overviewData.totals.total_revenue)"></div>
+        </div>
+        <div class="bg-white rounded-xl border p-4 shadow-sm">
+          <div class="text-xs text-gray-500 uppercase tracking-wide">Net Profit</div>
+          <div class="text-2xl font-bold text-thrive-900 mt-1" x-text="fmt(overviewData.totals.net_profit)"></div>
+        </div>
+        <div class="bg-white rounded-xl border p-4 shadow-sm">
+          <div class="text-xs text-gray-500 uppercase tracking-wide">Blended Margin</div>
+          <div class="text-2xl font-bold mt-1" :class="overviewData.totals.blended_margin>=50?'text-green-600':'text-orange-600'" x-text="pct(overviewData.totals.blended_margin)"></div>
+        </div>
+        <div class="bg-white rounded-xl border p-4 shadow-sm">
+          <div class="text-xs text-gray-500 uppercase tracking-wide">Total Units</div>
+          <div class="text-2xl font-bold text-thrive-900 mt-1" x-text="fmtN(overviewData.totals.total_units)"></div>
+        </div>
+        <div class="bg-white rounded-xl border p-4 shadow-sm">
+          <div class="text-xs text-gray-500 uppercase tracking-wide">Stores</div>
+          <div class="text-2xl font-bold text-thrive-900 mt-1" x-text="health?.stores||'-'"></div>
+        </div>
+        <div class="bg-white rounded-xl border p-4 shadow-sm">
+          <div class="text-xs text-gray-500 uppercase tracking-wide">Brands</div>
+          <div class="text-2xl font-bold text-thrive-900 mt-1" x-text="health?.brands||'-'"></div>
+        </div>
+      </div>
+
+      <!-- Margin Breakdown -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-thrive-50 rounded-xl border border-thrive-200 p-4">
+          <div class="text-xs text-thrive-700 uppercase">Full Price %</div>
+          <div class="text-lg font-bold text-thrive-900" x-text="pct(overviewData.totals.pct_full_price)"></div>
+        </div>
+        <div class="bg-thrive-50 rounded-xl border border-thrive-200 p-4">
+          <div class="text-xs text-thrive-700 uppercase">FP Margin</div>
+          <div class="text-lg font-bold text-thrive-900" x-text="pct(overviewData.totals.full_price_margin)"></div>
+        </div>
+        <div class="bg-orange-50 rounded-xl border border-orange-200 p-4">
+          <div class="text-xs text-orange-700 uppercase">Discounted %</div>
+          <div class="text-lg font-bold text-orange-800" x-text="pct(overviewData.totals.pct_discounted)"></div>
+        </div>
+        <div class="bg-orange-50 rounded-xl border border-orange-200 p-4">
+          <div class="text-xs text-orange-700 uppercase">Disc Margin</div>
+          <div class="text-lg font-bold text-orange-800" x-text="pct(overviewData.totals.discounted_margin)"></div>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div class="grid lg:grid-cols-3 gap-6 mb-6">
+        <div class="bg-white rounded-xl border p-5 shadow-sm" style="min-height:320px">
+          <h3 class="text-sm font-semibold text-gray-700 mb-4">Revenue by Store</h3>
+          <div style="position:relative;height:260px"><canvas id="chart-store-revenue"></canvas></div>
+        </div>
+        <div class="bg-white rounded-xl border p-5 shadow-sm" style="min-height:320px">
+          <h3 class="text-sm font-semibold text-gray-700 mb-4">Revenue by Category</h3>
+          <div style="position:relative;height:260px"><canvas id="chart-category-doughnut"></canvas></div>
+        </div>
+        <div class="bg-white rounded-xl border p-5 shadow-sm" style="min-height:320px">
+          <h3 class="text-sm font-semibold text-gray-700 mb-4">Margin by Category</h3>
+          <div style="position:relative;height:260px"><canvas id="chart-category-margin"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Top Brands Table -->
+      <div class="bg-white rounded-xl border shadow-sm">
+        <div class="px-5 py-3 border-b">
+          <h3 class="text-sm font-semibold text-gray-700">Top 20 Brands by Revenue</h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="text-left px-4 py-2.5 font-medium text-gray-600">#</th>
+                <th class="text-left px-4 py-2.5 font-medium text-gray-600">Brand</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Revenue</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Units</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">FP Margin</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Disc Margin</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Blended</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">FP %</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Net Profit</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="(r,i) in overviewData.by_brand.slice(0,20)" :key="r.name">
+                <tr class="border-t hover:bg-thrive-50/50 cursor-pointer transition" @click="switchView('brands');selectBrand(r.name)">
+                  <td class="px-4 py-2.5 text-gray-400" x-text="i+1"></td>
+                  <td class="px-4 py-2.5 font-medium text-thrive-900" x-text="r.name"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="fmt(r.total_revenue)"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="fmtN(r.total_units)"></td>
+                  <td class="px-4 py-2.5 text-right text-green-600" x-text="pct(r.full_price_margin)"></td>
+                  <td class="px-4 py-2.5 text-right text-orange-600" x-text="pct(r.discounted_margin)"></td>
+                  <td class="px-4 py-2.5 text-right font-semibold" :class="r.blended_margin>=50?'text-green-600':'text-orange-600'" x-text="pct(r.blended_margin)"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="pct(r.pct_full_price)"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="fmt(r.net_profit)"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </template>
+</section>
+
+<!-- ════════════════════════════════════════════════════
+     BRAND EXPLORER
+     ════════════════════════════════════════════════════ -->
+<section x-show="view==='brands'" x-cloak>
+  <!-- Empty state -->
+  <div x-show="!brandReport && !loading" class="text-center py-24 text-gray-400">
+    <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+    </svg>
+    <p class="text-lg">Search and select a brand above</p>
+  </div>
+  <!-- Loading state -->
+  <div x-show="loading && !brandReport" x-cloak class="flex flex-col items-center justify-center py-32 text-gray-400">
+    <svg class="w-12 h-12 animate-spin text-thrive-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+    </svg>
+    <p class="text-lg font-medium text-gray-500">Loading brand report...</p>
+    <p class="text-sm text-gray-400 mt-1" x-text="'Analyzing ' + selectedBrand"></p>
+  </div>
+
+  <template x-if="brandReport">
+    <div>
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <h2 class="text-2xl font-bold text-thrive-900" x-text="brandReport.brand"></h2>
+          <p class="text-sm text-gray-500" x-text="brandReport.period_label+' | '+brandReport.date_range"></p>
+        </div>
+        <a :href="'/api/brands/'+encodeURIComponent(brandReport.brand)+'/report/excel?'+new URLSearchParams(periodParams())"
+          class="bg-thrive-900 text-white px-4 py-2 rounded-lg text-sm hover:bg-thrive-800 transition flex items-center gap-2 no-underline">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a2 2 0 002 2h14a2 2 0 002-2v-3"/></svg>
+          Download Excel
+        </a>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+        <div class="bg-white rounded-xl border p-4 shadow-sm">
+          <div class="text-xs text-gray-500 uppercase">Revenue</div>
+          <div class="text-xl font-bold text-thrive-900 mt-1" x-text="fmt(brandReport.summary.total_revenue)"></div>
+        </div>
+        <div class="bg-white rounded-xl border p-4 shadow-sm">
+          <div class="text-xs text-gray-500 uppercase">Margin</div>
+          <div class="text-xl font-bold mt-1" :class="brandReport.summary.overall_margin>=50?'text-green-600':'text-orange-600'" x-text="pct(brandReport.summary.overall_margin)"></div>
+        </div>
+        <div class="bg-white rounded-xl border p-4 shadow-sm">
+          <div class="text-xs text-gray-500 uppercase">Category Rank</div>
+          <div class="text-xl font-bold text-thrive-900 mt-1" x-text="'#'+brandReport.summary.category_rank+' / '+brandReport.summary.category_total"></div>
+          <div class="text-xs text-gray-400" x-text="brandReport.summary.primary_category"></div>
+        </div>
+        <div class="bg-white rounded-xl border p-4 shadow-sm">
+          <div class="text-xs text-gray-500 uppercase">Units Sold</div>
+          <div class="text-xl font-bold text-thrive-900 mt-1" x-text="fmtN(brandReport.summary.total_units)"></div>
+        </div>
+        <div class="bg-white rounded-xl border p-4 shadow-sm">
+          <div class="text-xs text-gray-500 uppercase">Customers</div>
+          <div class="text-xl font-bold text-thrive-900 mt-1" x-text="fmtN(brandReport.summary.unique_customers)"></div>
+        </div>
+        <div class="bg-white rounded-xl border p-4 shadow-sm">
+          <div class="text-xs text-gray-500 uppercase">vs Category</div>
+          <div class="text-xl font-bold mt-1" :class="brandReport.summary.margin_vs_category>=0?'text-green-600':'text-red-500'"
+            x-text="(brandReport.summary.margin_vs_category>=0?'+':'')+brandReport.summary.margin_vs_category+' pts'"></div>
+        </div>
+      </div>
+
+      <!-- Trend -->
+      <div x-show="brandReport.trend?.length" class="bg-white rounded-xl border p-5 shadow-sm mb-6">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Monthly Revenue Trend</h3>
+        <div style="position:relative;height:240px"><canvas id="chart-brand-trend"></canvas></div>
+      </div>
+
+      <!-- Charts -->
+      <div class="grid lg:grid-cols-2 gap-6 mb-6">
+        <div x-show="brandReport.category_breakdown?.length" class="bg-white rounded-xl border p-5 shadow-sm">
+          <h3 class="text-sm font-semibold text-gray-700 mb-3">Revenue by Category</h3>
+          <div style="position:relative;height:260px"><canvas id="chart-brand-categories"></canvas></div>
+        </div>
+        <div x-show="brandReport.share_of_category?.length" class="bg-white rounded-xl border p-5 shadow-sm">
+          <h3 class="text-sm font-semibold text-gray-700 mb-3">Share of Category Revenue</h3>
+          <div style="position:relative;height:260px"><canvas id="chart-brand-soc"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Discount Depth -->
+      <div x-show="brandReport.discount_depth?.length" class="bg-white rounded-xl border p-5 shadow-sm mb-6">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Discount Depth Distribution</h3>
+        <div style="position:relative;height:200px"><canvas id="chart-brand-depth"></canvas></div>
+      </div>
+
+      <!-- Velocity Table -->
+      <div x-show="brandReport.velocity_by_category?.length" class="bg-white rounded-xl border shadow-sm mb-6">
+        <div class="px-5 py-3 border-b"><h3 class="text-sm font-semibold text-gray-700">Velocity by Category</h3></div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="text-left px-4 py-2.5 font-medium text-gray-600">Category</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Brand Units/Day</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Cat Avg/Day</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Velocity Index</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Brand $/Unit</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Cat $/Unit</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Brands</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="v in brandReport.velocity_by_category" :key="v.category">
+                <tr class="border-t hover:bg-gray-50">
+                  <td class="px-4 py-2.5 font-medium" x-text="v.category"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="v.brand_units_per_day"></td>
+                  <td class="px-4 py-2.5 text-right text-gray-500" x-text="v.category_avg_units_per_day"></td>
+                  <td class="px-4 py-2.5 text-right font-bold" :class="v.velocity_index>120?'text-green-600':v.velocity_index<80?'text-red-500':''" x-text="v.velocity_index"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="fmt(v.brand_rev_per_unit)"></td>
+                  <td class="px-4 py-2.5 text-right text-gray-500" x-text="fmt(v.category_rev_per_unit)"></td>
+                  <td class="px-4 py-2.5 text-right text-gray-400" x-text="v.brands_in_category"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Top Products -->
+      <div x-show="brandReport.top_products?.length" class="bg-white rounded-xl border shadow-sm mb-6">
+        <div class="px-5 py-3 border-b"><h3 class="text-sm font-semibold text-gray-700">Top Products</h3></div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="text-left px-4 py-2.5 font-medium text-gray-600">Product</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Revenue</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Units</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Margin</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Profit</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Txns</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="(p,i) in brandReport.top_products" :key="p.product">
+                <tr class="border-t hover:bg-gray-50" :class="i<3?'bg-thrive-50/30':''">
+                  <td class="px-4 py-2.5" x-text="p.product"></td>
+                  <td class="px-4 py-2.5 text-right font-medium" x-text="fmt(p.revenue)"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="fmtN(p.units)"></td>
+                  <td class="px-4 py-2.5 text-right" :class="p.margin>=50?'text-green-600':'text-orange-600'" x-text="pct(p.margin)"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="fmt(p.profit)"></td>
+                  <td class="px-4 py-2.5 text-right text-gray-500" x-text="fmtN(p.transactions)"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Deal Performance -->
+      <div x-show="brandReport.deals?.length" class="bg-white rounded-xl border shadow-sm mb-6">
+        <div class="px-5 py-3 border-b"><h3 class="text-sm font-semibold text-gray-700">Deal Performance</h3></div>
+        <div class="overflow-x-auto max-h-96 overflow-y-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 sticky top-0">
+              <tr>
+                <th class="text-left px-4 py-2.5 font-medium text-gray-600">Deal Name</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Uses</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Revenue</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Discounts</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Margin</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Profit</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="d in brandReport.deals" :key="d.deal_name">
+                <tr class="border-t hover:bg-gray-50">
+                  <td class="px-4 py-2.5" x-text="d.deal_name"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="fmtN(d.times_used)"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="fmt(d.revenue)"></td>
+                  <td class="px-4 py-2.5 text-right text-red-500" x-text="fmt(d.discounts)"></td>
+                  <td class="px-4 py-2.5 text-right" :class="d.margin>=40?'text-green-600':'text-red-500'" x-text="pct(d.margin)"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="fmt(d.profit)"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- By Store -->
+      <div x-show="brandReport.store_summary?.length" class="bg-white rounded-xl border shadow-sm mb-6">
+        <div class="px-5 py-3 border-b"><h3 class="text-sm font-semibold text-gray-700">Performance by Store</h3></div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="text-left px-4 py-2.5 font-medium text-gray-600">Store</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Revenue</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Units</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Margin</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Disc Rate</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Profit</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="s in brandReport.store_summary" :key="s.store_clean">
+                <tr class="border-t hover:bg-gray-50">
+                  <td class="px-4 py-2.5 font-medium" x-text="s.store_clean"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="fmt(s.revenue)"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="fmtN(s.units)"></td>
+                  <td class="px-4 py-2.5 text-right" :class="s.margin>=50?'text-green-600':'text-orange-600'" x-text="pct(s.margin)"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="pct(s.discount_rate)"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="fmt(s.profit)"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Recommendations -->
+      <div x-show="brandReport.recommendations?.length">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Recommendations</h3>
+        <div class="grid md:grid-cols-2 gap-4 mb-6">
+          <template x-for="(rec,i) in brandReport.recommendations" :key="i">
+            <div class="rounded-xl border p-4"
+              :class="rec.severity==='red'?'bg-red-50 border-red-200':rec.severity==='orange'?'bg-orange-50 border-orange-200':'bg-thrive-50 border-thrive-200'">
+              <div class="font-semibold text-sm mb-1" x-text="rec.title"></div>
+              <div class="text-xs text-gray-600 leading-relaxed" x-text="rec.detail"></div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+  </template>
+</section>
+
+<!-- ════════════════════════════════════════════════════
+     BRAND FACING
+     ════════════════════════════════════════════════════ -->
+<section x-show="view==='facing'" x-cloak>
+  <!-- Empty state -->
+  <div x-show="!facingReport && !loading" class="text-center py-24 text-gray-400">
+    <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+    </svg>
+    <p class="text-lg">Search and select a brand above</p>
+  </div>
+  <!-- Loading state -->
+  <div x-show="loading && !facingReport" x-cloak class="flex flex-col items-center justify-center py-32 text-gray-400">
+    <svg class="w-12 h-12 animate-spin text-thrive-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+    </svg>
+    <p class="text-lg font-medium text-gray-500">Loading brand facing report...</p>
+    <p class="text-sm text-gray-400 mt-1" x-text="'Analyzing ' + selectedBrand"></p>
+  </div>
+
+  <template x-if="facingReport">
+    <div>
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <h2 class="text-2xl font-bold text-thrive-900" x-text="facingReport.brand+' — Brand Facing'"></h2>
+          <p class="text-sm text-gray-500" x-text="facingReport.period_label+' | '+facingReport.date_range"></p>
+        </div>
+        <a :href="'/api/brands/'+encodeURIComponent(facingReport.brand)+'/facing/excel?'+new URLSearchParams(periodParams())"
+          class="bg-thrive-900 text-white px-4 py-2 rounded-lg text-sm hover:bg-thrive-800 transition flex items-center gap-2 no-underline">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a2 2 0 002 2h14a2 2 0 002-2v-3"/></svg>
+          Download Excel
+        </a>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+        <div class="bg-white rounded-xl border p-4 shadow-sm">
+          <div class="text-xs text-gray-500 uppercase">Revenue</div>
+          <div class="text-xl font-bold text-thrive-900 mt-1" x-text="fmt(facingReport.summary.total_revenue)"></div>
+        </div>
+        <div class="bg-white rounded-xl border p-4 shadow-sm">
+          <div class="text-xs text-gray-500 uppercase">Margin</div>
+          <div class="text-xl font-bold mt-1" :class="facingReport.summary.overall_margin>=50?'text-green-600':'text-orange-600'" x-text="pct(facingReport.summary.overall_margin)"></div>
+        </div>
+        <div class="bg-white rounded-xl border p-4 shadow-sm">
+          <div class="text-xs text-gray-500 uppercase">Store Coverage</div>
+          <div class="text-xl font-bold text-thrive-900 mt-1" x-text="facingReport.summary.store_coverage"></div>
+        </div>
+        <div class="bg-white rounded-xl border p-4 shadow-sm">
+          <div class="text-xs text-gray-500 uppercase">Velocity Rank</div>
+          <div class="text-xl font-bold text-thrive-900 mt-1" x-text="'#'+facingReport.summary.velocity_rank+' / '+facingReport.summary.velocity_total"></div>
+          <div class="text-xs text-gray-400" x-text="facingReport.summary.primary_category"></div>
+        </div>
+        <div class="bg-white rounded-xl border p-4 shadow-sm">
+          <div class="text-xs text-gray-500 uppercase">Units Sold</div>
+          <div class="text-xl font-bold text-thrive-900 mt-1" x-text="fmtN(facingReport.summary.total_units)"></div>
+        </div>
+        <div class="bg-white rounded-xl border p-4 shadow-sm">
+          <div class="text-xs text-gray-500 uppercase">Full Price %</div>
+          <div class="text-xl font-bold mt-1" :class="facingReport.summary.pct_full_price>=50?'text-green-600':'text-orange-600'" x-text="pct(facingReport.summary.pct_full_price)"></div>
+        </div>
+      </div>
+
+      <!-- Distribution Scorecard -->
+      <div class="bg-white rounded-xl border shadow-sm mb-6">
+        <div class="px-5 py-3 border-b"><h3 class="text-sm font-semibold text-gray-700">Distribution Scorecard</h3></div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="text-left px-4 py-2.5 font-medium text-gray-600">Store</th>
+                <th class="text-center px-4 py-2.5 font-medium text-gray-600">Carried</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">SKUs</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Brand Revenue</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Units</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Store Total Rev</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Brand Share</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="s in facingReport.distribution" :key="s.store">
+                <tr class="border-t" :class="s.carries_brand?'hover:bg-gray-50':'bg-red-50'">
+                  <td class="px-4 py-2.5 font-medium" x-text="s.store"></td>
+                  <td class="px-4 py-2.5 text-center text-lg" :class="s.carries_brand?'text-green-600':'text-red-500'" x-text="s.carries_brand?'\u2713':'\u2717'"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="s.sku_count"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="fmt(s.revenue)"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="fmtN(s.units)"></td>
+                  <td class="px-4 py-2.5 text-right text-gray-500" x-text="fmt(s.store_total_revenue)"></td>
+                  <td class="px-4 py-2.5 text-right font-semibold" :class="s.brand_share_pct>5?'text-green-600':''" x-text="pct(s.brand_share_pct)"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="grid lg:grid-cols-2 gap-6 mb-6">
+        <div x-show="facingReport.share_of_category?.length" class="bg-white rounded-xl border p-5 shadow-sm">
+          <h3 class="text-sm font-semibold text-gray-700 mb-3">Share of Category</h3>
+          <div style="position:relative;height:260px"><canvas id="chart-facing-soc"></canvas></div>
+        </div>
+        <div x-show="facingReport.velocity_by_category?.length" class="bg-white rounded-xl border p-5 shadow-sm">
+          <h3 class="text-sm font-semibold text-gray-700 mb-3">Velocity Benchmarking</h3>
+          <div style="position:relative;height:260px"><canvas id="chart-facing-velocity"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Store Gap Analysis -->
+      <div x-show="facingReport.store_gaps?.length" class="bg-white rounded-xl border shadow-sm mb-6">
+        <div class="px-5 py-3 border-b"><h3 class="text-sm font-semibold text-gray-700">Store Gap Analysis</h3></div>
+        <div class="overflow-x-auto max-h-96 overflow-y-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 sticky top-0">
+              <tr>
+                <th class="text-left px-4 py-2.5 font-medium text-gray-600">Store</th>
+                <th class="text-left px-4 py-2.5 font-medium text-gray-600">Category</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Category Revenue</th>
+                <th class="text-left px-4 py-2.5 font-medium text-gray-600">Opportunity</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="(g,i) in facingReport.store_gaps.slice(0,25)" :key="i">
+                <tr class="border-t hover:bg-yellow-50">
+                  <td class="px-4 py-2.5 font-medium" x-text="g.store"></td>
+                  <td class="px-4 py-2.5" x-text="g.category"></td>
+                  <td class="px-4 py-2.5 text-right font-semibold text-thrive-900" x-text="fmt(g.category_revenue_at_store)"></td>
+                  <td class="px-4 py-2.5 text-orange-600 text-xs" x-text="g.opportunity"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Product Mix -->
+      <div x-show="facingReport.product_mix?.top?.length" class="bg-white rounded-xl border shadow-sm mb-6">
+        <div class="px-5 py-3 border-b"><h3 class="text-sm font-semibold text-gray-700">Top Products</h3></div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="text-left px-4 py-2.5 font-medium text-gray-600">Product</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Stores</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Revenue</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Units</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Margin</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Profit</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="(p,i) in facingReport.product_mix.top" :key="p.product">
+                <tr class="border-t hover:bg-gray-50" :class="i<3?'bg-thrive-50/30':''">
+                  <td class="px-4 py-2.5" x-text="p.product"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="p.stores"></td>
+                  <td class="px-4 py-2.5 text-right font-medium" x-text="fmt(p.revenue)"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="fmtN(p.units)"></td>
+                  <td class="px-4 py-2.5 text-right" :class="p.margin>=50?'text-green-600':'text-orange-600'" x-text="pct(p.margin)"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="fmt(p.profit)"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SKU Expansion Opportunities -->
+      <div x-show="facingReport.product_mix?.expansion?.length" class="bg-white rounded-xl border shadow-sm mb-6">
+        <div class="px-5 py-3 border-b"><h3 class="text-sm font-semibold text-gray-700">SKU Expansion Opportunities</h3></div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="text-left px-4 py-2.5 font-medium text-gray-600">Product</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Current Stores</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Total Stores</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Revenue</th>
+                <th class="text-left px-4 py-2.5 font-medium text-gray-600">Missing From</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="e in facingReport.product_mix.expansion" :key="e.product">
+                <tr class="border-t hover:bg-yellow-50">
+                  <td class="px-4 py-2.5" x-text="e.product"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="e.current_stores"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="e.total_stores"></td>
+                  <td class="px-4 py-2.5 text-right font-medium" x-text="fmt(e.revenue)"></td>
+                  <td class="px-4 py-2.5 text-xs text-gray-500" x-text="e.missing_stores?.join(', ')"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Pricing Consistency -->
+      <div x-show="facingReport.pricing_consistency?.length" class="bg-white rounded-xl border shadow-sm mb-6">
+        <div class="px-5 py-3 border-b"><h3 class="text-sm font-semibold text-gray-700">Pricing Consistency</h3></div>
+        <div class="overflow-x-auto max-h-96 overflow-y-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 sticky top-0">
+              <tr>
+                <th class="text-left px-4 py-2.5 font-medium text-gray-600">Product</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Stores</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Min</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Max</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Avg</th>
+                <th class="text-right px-4 py-2.5 font-medium text-gray-600">Range %</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="p in facingReport.pricing_consistency" :key="p.product">
+                <tr class="border-t" :class="p.range_pct>20?'bg-orange-50 hover:bg-orange-100':'hover:bg-gray-50'">
+                  <td class="px-4 py-2.5" x-text="p.product"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="p.store_count"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="'$'+p.min_price.toFixed(2)"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="'$'+p.max_price.toFixed(2)"></td>
+                  <td class="px-4 py-2.5 text-right" x-text="'$'+p.avg_price.toFixed(2)"></td>
+                  <td class="px-4 py-2.5 text-right font-semibold" :class="p.range_pct>20?'text-red-500':''" x-text="pct(p.range_pct)"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Promotional Effectiveness -->
+      <div x-show="facingReport.promotional_effectiveness" class="bg-white rounded-xl border shadow-sm mb-6">
+        <div class="px-5 py-3 border-b"><h3 class="text-sm font-semibold text-gray-700">Promotional Effectiveness</h3></div>
+        <div class="p-5">
+          <!-- Lift KPIs -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4" x-show="facingReport.promotional_effectiveness?.lift">
+            <div class="bg-gray-50 rounded-lg p-3">
+              <div class="text-xs text-gray-500">FP Units/Day</div>
+              <div class="text-lg font-bold" x-text="facingReport.promotional_effectiveness.lift?.fp_units_per_day"></div>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-3">
+              <div class="text-xs text-gray-500">Promo Units/Day</div>
+              <div class="text-lg font-bold" x-text="facingReport.promotional_effectiveness.lift?.disc_units_per_day"></div>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-3">
+              <div class="text-xs text-gray-500">Promo Lift</div>
+              <div class="text-lg font-bold" :class="(facingReport.promotional_effectiveness.lift?.lift_pct||0)>0?'text-green-600':'text-orange-600'"
+                x-text="facingReport.promotional_effectiveness.lift?.lift_pct!=null?facingReport.promotional_effectiveness.lift.lift_pct+'%':'N/A'"></div>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-3">
+              <div class="text-xs text-gray-500">FP $/Unit</div>
+              <div class="text-lg font-bold" x-text="fmt(facingReport.promotional_effectiveness.lift?.fp_avg_revenue_per_unit)"></div>
+            </div>
+          </div>
+          <!-- By Deal Table -->
+          <div x-show="facingReport.promotional_effectiveness?.by_deal?.length" class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="text-left px-4 py-2.5 font-medium text-gray-600">Deal</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Uses</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Revenue</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Depth</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Margin</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="d in facingReport.promotional_effectiveness.by_deal" :key="d.deal_name">
+                  <tr class="border-t hover:bg-gray-50">
+                    <td class="px-4 py-2.5" x-text="d.deal_name"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmtN(d.uses)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmt(d.revenue)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="pct(d.discount_depth)"></td>
+                    <td class="px-4 py-2.5 text-right" :class="d.margin>=40?'text-green-600':'text-red-500'" x-text="pct(d.margin)"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Growth Opportunities -->
+      <div x-show="facingReport.growth_opportunities?.length">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Growth Opportunities</h3>
+        <div class="grid md:grid-cols-2 gap-4 mb-6">
+          <template x-for="(opp,i) in facingReport.growth_opportunities" :key="i">
+            <div class="bg-thrive-50 border border-thrive-200 rounded-xl p-4">
+              <div class="font-semibold text-sm text-thrive-900 mb-1" x-text="opp.title"></div>
+              <div class="text-xs text-gray-600 leading-relaxed" x-text="opp.detail"></div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+  </template>
+</section>
+
+<!-- ════════════════════════════════════════════════════
+     MASTER REPORTS
+     ════════════════════════════════════════════════════ -->
+<section x-show="view==='master'" x-cloak>
+  <!-- Sub-tabs + Downloads -->
+  <div class="flex flex-wrap items-center gap-2 mb-6">
+    <template x-for="[t,l] in [['margin','Margin'],['deals','Deals'],['budtenders','Budtenders'],['customers','Customers'],['rewards','Rewards']]">
+      <button @click="switchMasterTab(t)"
+        :class="masterTab===t?'bg-thrive-900 text-white shadow':'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+        class="px-4 py-2 rounded-lg text-sm font-medium transition" x-text="l"></button>
+    </template>
+    <div class="flex-1"></div>
+    <a :href="'/api/master/'+masterTab+'/excel?'+new URLSearchParams(periodParams())"
+      class="bg-thrive-900 text-white px-3 py-2 rounded-lg text-xs hover:bg-thrive-800 transition no-underline">Download Excel</a>
+    <a :href="'/api/master/suite/excel?'+new URLSearchParams(periodParams())"
+      class="bg-thrive-700 text-white px-3 py-2 rounded-lg text-xs hover:bg-thrive-600 transition no-underline">Download Suite ZIP</a>
+  </div>
+
+  <!-- Loading state -->
+  <div x-show="loading && !masterData" x-cloak class="flex flex-col items-center justify-center py-32 text-gray-400">
+    <svg class="w-12 h-12 animate-spin text-thrive-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+    </svg>
+    <p class="text-lg font-medium text-gray-500" x-text="'Loading ' + masterTab + ' report...'"></p>
+    <p class="text-sm text-gray-400 mt-1">Crunching 4.8M+ transactions</p>
+  </div>
+
+  <template x-if="masterData">
+    <div>
+      <p class="text-sm text-gray-500 mb-4" x-text="masterData.date_range"></p>
+
+      <!-- ── MARGIN ── -->
+      <div x-show="masterTab==='margin'">
+        <div x-show="masterData.totals" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+          <div class="bg-white rounded-xl border p-4 shadow-sm">
+            <div class="text-xs text-gray-500 uppercase">Total Revenue</div>
+            <div class="text-xl font-bold text-thrive-900 mt-1" x-text="fmt(masterData.totals?.total_revenue)"></div>
+          </div>
+          <div class="bg-white rounded-xl border p-4 shadow-sm">
+            <div class="text-xs text-gray-500 uppercase">Net Profit</div>
+            <div class="text-xl font-bold text-thrive-900 mt-1" x-text="fmt(masterData.totals?.net_profit)"></div>
+          </div>
+          <div class="bg-white rounded-xl border p-4 shadow-sm">
+            <div class="text-xs text-gray-500 uppercase">Blended Margin</div>
+            <div class="text-xl font-bold mt-1" :class="(masterData.totals?.blended_margin||0)>=50?'text-green-600':'text-orange-600'" x-text="pct(masterData.totals?.blended_margin)"></div>
+          </div>
+          <div class="bg-white rounded-xl border p-4 shadow-sm">
+            <div class="text-xs text-gray-500 uppercase">FP Margin</div>
+            <div class="text-xl font-bold text-green-600 mt-1" x-text="pct(masterData.totals?.full_price_margin)"></div>
+          </div>
+          <div class="bg-white rounded-xl border p-4 shadow-sm">
+            <div class="text-xs text-gray-500 uppercase">Disc Margin</div>
+            <div class="text-xl font-bold text-orange-600 mt-1" x-text="pct(masterData.totals?.discounted_margin)"></div>
+          </div>
+        </div>
+
+        <!-- By Store -->
+        <div x-show="masterData.by_store?.length" class="bg-white rounded-xl border shadow-sm mb-6">
+          <div class="px-5 py-3 border-b"><h3 class="text-sm font-semibold text-gray-700">Margin by Store</h3></div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="text-left px-4 py-2.5 font-medium text-gray-600">Store</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Revenue</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Units</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">FP %</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">FP Margin</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Disc Margin</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Blended</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Profit</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="r in masterData.by_store" :key="r.name">
+                  <tr class="border-t hover:bg-gray-50">
+                    <td class="px-4 py-2.5 font-medium" x-text="r.name"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmt(r.total_revenue)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmtN(r.total_units)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="pct(r.pct_full_price)"></td>
+                    <td class="px-4 py-2.5 text-right text-green-600" x-text="pct(r.full_price_margin)"></td>
+                    <td class="px-4 py-2.5 text-right text-orange-600" x-text="pct(r.discounted_margin)"></td>
+                    <td class="px-4 py-2.5 text-right font-semibold" x-text="pct(r.blended_margin)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmt(r.net_profit)"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- By Category -->
+        <div x-show="masterData.by_category?.length" class="bg-white rounded-xl border shadow-sm mb-6">
+          <div class="px-5 py-3 border-b"><h3 class="text-sm font-semibold text-gray-700">Margin by Category</h3></div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="text-left px-4 py-2.5 font-medium text-gray-600">Category</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Revenue</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Units</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">FP %</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">FP Margin</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Disc Margin</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Blended</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Profit</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="r in masterData.by_category" :key="r.name">
+                  <tr class="border-t hover:bg-gray-50">
+                    <td class="px-4 py-2.5 font-medium" x-text="r.name"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmt(r.total_revenue)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmtN(r.total_units)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="pct(r.pct_full_price)"></td>
+                    <td class="px-4 py-2.5 text-right text-green-600" x-text="pct(r.full_price_margin)"></td>
+                    <td class="px-4 py-2.5 text-right text-orange-600" x-text="pct(r.discounted_margin)"></td>
+                    <td class="px-4 py-2.5 text-right font-semibold" x-text="pct(r.blended_margin)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmt(r.net_profit)"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- By Brand (top 30) -->
+        <div x-show="masterData.by_brand?.length" class="bg-white rounded-xl border shadow-sm mb-6">
+          <div class="px-5 py-3 border-b"><h3 class="text-sm font-semibold text-gray-700">Top 30 Brands by Revenue</h3></div>
+          <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 sticky top-0">
+                <tr>
+                  <th class="text-left px-4 py-2.5 font-medium text-gray-600">Brand</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Revenue</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Units</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">FP %</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">FP Margin</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Disc Margin</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Blended</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Profit</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="r in masterData.by_brand.slice(0,30)" :key="r.name">
+                  <tr class="border-t hover:bg-gray-50 cursor-pointer" @click="switchView('brands');selectBrand(r.name)">
+                    <td class="px-4 py-2.5 font-medium text-thrive-900" x-text="r.name"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmt(r.total_revenue)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmtN(r.total_units)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="pct(r.pct_full_price)"></td>
+                    <td class="px-4 py-2.5 text-right text-green-600" x-text="pct(r.full_price_margin)"></td>
+                    <td class="px-4 py-2.5 text-right text-orange-600" x-text="pct(r.discounted_margin)"></td>
+                    <td class="px-4 py-2.5 text-right font-semibold" :class="r.blended_margin>=50?'text-green-600':'text-orange-600'" x-text="pct(r.blended_margin)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmt(r.net_profit)"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── DEALS ── -->
+      <div x-show="masterTab==='deals'">
+        <div x-show="masterData.deal_types?.length" class="bg-white rounded-xl border shadow-sm mb-6">
+          <div class="px-5 py-3 border-b"><h3 class="text-sm font-semibold text-gray-700">Performance by Deal Type</h3></div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="text-left px-4 py-2.5 font-medium text-gray-600">Deal Type</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Txns</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Units</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Revenue</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Discounts</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Disc Rate</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Margin</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Profit</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="d in masterData.deal_types" :key="d.deal_type">
+                  <tr class="border-t hover:bg-gray-50">
+                    <td class="px-4 py-2.5 font-medium" x-text="d.deal_type"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmtN(d.transactions)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmtN(d.units)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmt(d.actual_revenue)"></td>
+                    <td class="px-4 py-2.5 text-right text-red-500" x-text="fmt(d.discounts)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="pct(d.discount_rate)"></td>
+                    <td class="px-4 py-2.5 text-right" :class="d.margin>=50?'text-green-600':'text-orange-600'" x-text="pct(d.margin)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmt(d.net_profit)"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div x-show="masterData.top_deals?.length" class="bg-white rounded-xl border shadow-sm mb-6">
+          <div class="px-5 py-3 border-b"><h3 class="text-sm font-semibold text-gray-700">Top 50 Deals</h3></div>
+          <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 sticky top-0">
+                <tr>
+                  <th class="text-left px-4 py-2.5 font-medium text-gray-600">Deal Name</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Times Used</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Revenue</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Discounts</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Margin</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="d in masterData.top_deals" :key="d.deal_name">
+                  <tr class="border-t hover:bg-gray-50">
+                    <td class="px-4 py-2.5" x-text="d.deal_name"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmtN(d.times_used)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmt(d.revenue)"></td>
+                    <td class="px-4 py-2.5 text-right text-red-500" x-text="fmt(d.discounts)"></td>
+                    <td class="px-4 py-2.5 text-right" :class="d.margin>=50?'text-green-600':'text-orange-600'" x-text="pct(d.margin)"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── BUDTENDERS ── -->
+      <div x-show="masterTab==='budtenders'">
+        <div x-show="masterData.summary" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div class="bg-white rounded-xl border p-4 shadow-sm">
+            <div class="text-xs text-gray-500 uppercase">Total Budtenders</div>
+            <div class="text-xl font-bold text-thrive-900 mt-1" x-text="masterData.summary?.total_budtenders||0"></div>
+          </div>
+          <div class="bg-white rounded-xl border p-4 shadow-sm">
+            <div class="text-xs text-gray-500 uppercase">Avg Sales Score</div>
+            <div class="text-xl font-bold text-thrive-900 mt-1" x-text="(masterData.summary?.avg_sales_score||0).toFixed(1)"></div>
+          </div>
+          <div class="bg-white rounded-xl border p-4 shadow-sm">
+            <div class="text-xs text-gray-500 uppercase">Top Performers</div>
+            <div class="text-xl font-bold text-green-600 mt-1" x-text="masterData.summary?.top_performers||0"></div>
+          </div>
+          <div class="bg-white rounded-xl border p-4 shadow-sm">
+            <div class="text-xs text-gray-500 uppercase">Needs Coaching</div>
+            <div class="text-xl font-bold text-orange-600 mt-1" x-text="masterData.summary?.needs_coaching||0"></div>
+          </div>
+        </div>
+
+        <div x-show="masterData.all_rankings?.length" class="bg-white rounded-xl border shadow-sm mb-6">
+          <div class="px-5 py-3 border-b"><h3 class="text-sm font-semibold text-gray-700">Budtender Rankings</h3></div>
+          <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 sticky top-0">
+                <tr>
+                  <th class="text-left px-4 py-2.5 font-medium text-gray-600">Budtender</th>
+                  <th class="text-left px-4 py-2.5 font-medium text-gray-600">Store</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Score</th>
+                  <th class="text-left px-4 py-2.5 font-medium text-gray-600">Tier</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Txns</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Sales</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Avg Cart</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Units/Cart</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Disc %</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="b in masterData.all_rankings" :key="b.budtender+b.store_clean">
+                  <tr class="border-t hover:bg-gray-50" :class="b.tier==='Top Performer'?'bg-thrive-50/50':b.tier==='Needs Coaching'?'bg-orange-50/50':''">
+                    <td class="px-4 py-2.5 font-medium" x-text="b.budtender"></td>
+                    <td class="px-4 py-2.5 text-gray-500" x-text="b.store_clean"></td>
+                    <td class="px-4 py-2.5 text-right font-bold" :class="b.sales_score>=80?'text-green-600':b.sales_score<50?'text-red-500':''" x-text="b.sales_score"></td>
+                    <td class="px-4 py-2.5">
+                      <span class="text-xs px-2 py-0.5 rounded-full"
+                        :class="b.tier==='Top Performer'?'bg-green-100 text-green-800':b.tier==='Needs Coaching'?'bg-orange-100 text-orange-800':'bg-gray-100 text-gray-600'"
+                        x-text="b.tier"></span>
+                    </td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmtN(b.num_transactions)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmt(b.total_sales)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmt(b.avg_cart_value)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="b.avg_units_per_cart?.toFixed(1)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="pct(b.pct_sales_discounted)"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── CUSTOMERS ── -->
+      <div x-show="masterTab==='customers'">
+        <div x-show="masterData.summary" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div class="bg-white rounded-xl border p-4 shadow-sm">
+            <div class="text-xs text-gray-500 uppercase">Unique Customers</div>
+            <div class="text-xl font-bold text-thrive-900 mt-1" x-text="fmtN(masterData.summary?.total_customers)"></div>
+          </div>
+          <div class="bg-white rounded-xl border p-4 shadow-sm">
+            <div class="text-xs text-gray-500 uppercase">Total Revenue</div>
+            <div class="text-xl font-bold text-thrive-900 mt-1" x-text="fmt(masterData.summary?.total_revenue)"></div>
+          </div>
+          <div class="bg-white rounded-xl border p-4 shadow-sm">
+            <div class="text-xs text-gray-500 uppercase">Rev/Customer</div>
+            <div class="text-xl font-bold text-thrive-900 mt-1" x-text="fmt(masterData.summary?.revenue_per_customer)"></div>
+          </div>
+          <div class="bg-white rounded-xl border p-4 shadow-sm">
+            <div class="text-xs text-gray-500 uppercase">Loyalty Rate</div>
+            <div class="text-xl font-bold text-thrive-900 mt-1" x-text="pct(masterData.summary?.loyalty_rate)"></div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div class="bg-gray-50 rounded-xl border p-4">
+            <div class="text-xs text-gray-500 uppercase">Transactions</div>
+            <div class="text-lg font-bold" x-text="fmtN(masterData.summary?.total_transactions)"></div>
+          </div>
+          <div class="bg-gray-50 rounded-xl border p-4">
+            <div class="text-xs text-gray-500 uppercase">Avg Transaction</div>
+            <div class="text-lg font-bold" x-text="fmt(masterData.summary?.avg_transaction)"></div>
+          </div>
+          <div class="bg-gray-50 rounded-xl border p-4">
+            <div class="text-xs text-gray-500 uppercase">Total Discounts</div>
+            <div class="text-lg font-bold text-red-500" x-text="fmt(masterData.summary?.total_discounts)"></div>
+          </div>
+          <div class="bg-gray-50 rounded-xl border p-4">
+            <div class="text-xs text-gray-500 uppercase">Discount Rate</div>
+            <div class="text-lg font-bold" x-text="pct(masterData.summary?.discount_rate)"></div>
+          </div>
+        </div>
+
+        <!-- Segments -->
+        <div x-show="masterData.segments?.length" class="bg-white rounded-xl border shadow-sm mb-6">
+          <div class="px-5 py-3 border-b"><h3 class="text-sm font-semibold text-gray-700">Customer Segments</h3></div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="text-left px-4 py-2.5 font-medium text-gray-600">Segment</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Customers</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">% of Cust</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Revenue</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">% of Rev</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Rev/Cust</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Disc Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="s in masterData.segments" :key="s.segment">
+                  <tr class="border-t hover:bg-gray-50">
+                    <td class="px-4 py-2.5 font-medium" x-text="s.segment"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmtN(s.customers)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="pct(s.pct_of_cust)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmt(s.total_revenue)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="pct(s.pct_of_rev)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmt(s.rev_per_cust)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="pct(s.discount_rate)"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Top Customers -->
+        <div x-show="masterData.top_customers?.length" class="bg-white rounded-xl border shadow-sm mb-6">
+          <div class="px-5 py-3 border-b"><h3 class="text-sm font-semibold text-gray-700">Top 50 Customers</h3></div>
+          <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 sticky top-0">
+                <tr>
+                  <th class="text-left px-4 py-2.5 font-medium text-gray-600">#</th>
+                  <th class="text-left px-4 py-2.5 font-medium text-gray-600">Customer</th>
+                  <th class="text-left px-4 py-2.5 font-medium text-gray-600">Store</th>
+                  <th class="text-left px-4 py-2.5 font-medium text-gray-600">Segment</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Spend</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Txns</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Avg Txn</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Disc Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="c in masterData.top_customers" :key="c.rank">
+                  <tr class="border-t hover:bg-gray-50" :class="c.rank<=10?'bg-thrive-50/30':''">
+                    <td class="px-4 py-2.5 text-gray-400" x-text="c.rank"></td>
+                    <td class="px-4 py-2.5 font-medium" x-text="c.customer_name"></td>
+                    <td class="px-4 py-2.5 text-gray-500" x-text="c.primary_store"></td>
+                    <td class="px-4 py-2.5">
+                      <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600" x-text="c.segment"></span>
+                    </td>
+                    <td class="px-4 py-2.5 text-right font-medium" x-text="fmt(c.total_spent)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmtN(c.transactions)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmt(c.avg_transaction)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="pct(c.discount_rate)"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── REWARDS ── -->
+      <div x-show="masterTab==='rewards'">
+        <div x-show="masterData.summary" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div class="bg-white rounded-xl border p-4 shadow-sm">
+            <div class="text-xs text-gray-500 uppercase">Rewards Net Cost</div>
+            <div class="text-xl font-bold text-red-500 mt-1" x-text="fmt(masterData.summary?.rewards_net_cost)"></div>
+          </div>
+          <div class="bg-white rounded-xl border p-4 shadow-sm">
+            <div class="text-xs text-gray-500 uppercase">Markouts Net Cost</div>
+            <div class="text-xl font-bold text-red-500 mt-1" x-text="fmt(masterData.summary?.markouts_net_cost)"></div>
+          </div>
+          <div class="bg-white rounded-xl border p-4 shadow-sm">
+            <div class="text-xs text-gray-500 uppercase">Total Net Cost</div>
+            <div class="text-xl font-bold text-red-600 mt-1" x-text="fmt(masterData.summary?.total_net_cost)"></div>
+          </div>
+          <div class="bg-white rounded-xl border p-4 shadow-sm">
+            <div class="text-xs text-gray-500 uppercase">Monthly Projection</div>
+            <div class="text-xl font-bold text-orange-600 mt-1" x-text="fmt(masterData.summary?.monthly_projection)"></div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div class="bg-gray-50 rounded-xl border p-4">
+            <div class="text-xs text-gray-500 uppercase">Reward Redemptions</div>
+            <div class="text-lg font-bold" x-text="fmtN(masterData.summary?.reward_redemptions)"></div>
+          </div>
+          <div class="bg-gray-50 rounded-xl border p-4">
+            <div class="text-xs text-gray-500 uppercase">Unique Customers</div>
+            <div class="text-lg font-bold" x-text="fmtN(masterData.summary?.unique_reward_customers)"></div>
+          </div>
+          <div class="bg-gray-50 rounded-xl border p-4">
+            <div class="text-xs text-gray-500 uppercase">Markout Txns</div>
+            <div class="text-lg font-bold" x-text="fmtN(masterData.summary?.markout_transactions)"></div>
+          </div>
+          <div class="bg-gray-50 rounded-xl border p-4">
+            <div class="text-xs text-gray-500 uppercase">Employees w/ Markouts</div>
+            <div class="text-lg font-bold" x-text="fmtN(masterData.summary?.employees_using_markouts)"></div>
+          </div>
+        </div>
+
+        <!-- All Rewards -->
+        <div x-show="masterData.all_rewards?.length" class="bg-white rounded-xl border shadow-sm mb-6">
+          <div class="px-5 py-3 border-b"><h3 class="text-sm font-semibold text-gray-700">All Rewards</h3></div>
+          <div class="overflow-x-auto max-h-[500px] overflow-y-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 sticky top-0">
+                <tr>
+                  <th class="text-left px-4 py-2.5 font-medium text-gray-600">Reward</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Redemptions</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Units</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Retail Value</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Cost</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Net Cost</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">% of Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(r,i) in masterData.all_rewards" :key="r.reward_name">
+                  <tr class="border-t hover:bg-gray-50" :class="i<3?'bg-red-50/50':''">
+                    <td class="px-4 py-2.5" x-text="r.reward_name"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmtN(r.redemptions)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmtN(r.units)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmt(r.retail_value)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmt(r.cost)"></td>
+                    <td class="px-4 py-2.5 text-right font-semibold text-red-500" x-text="fmt(r.net_cost)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="pct(r.pct)"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Markouts by Employee -->
+        <div x-show="masterData.markouts_by_employee?.length" class="bg-white rounded-xl border shadow-sm mb-6">
+          <div class="px-5 py-3 border-b"><h3 class="text-sm font-semibold text-gray-700">Markouts by Employee</h3></div>
+          <div class="overflow-x-auto max-h-[500px] overflow-y-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 sticky top-0">
+                <tr>
+                  <th class="text-left px-4 py-2.5 font-medium text-gray-600">#</th>
+                  <th class="text-left px-4 py-2.5 font-medium text-gray-600">Employee</th>
+                  <th class="text-left px-4 py-2.5 font-medium text-gray-600">Store</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Redemptions</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Units</th>
+                  <th class="text-right px-4 py-2.5 font-medium text-gray-600">Cost</th>
+                  <th class="text-left px-4 py-2.5 font-medium text-gray-600">Products</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="e in masterData.markouts_by_employee" :key="e.rank">
+                  <tr class="border-t hover:bg-gray-50" :class="e.rank<=5?'bg-orange-50/50':''">
+                    <td class="px-4 py-2.5 text-gray-400" x-text="e.rank"></td>
+                    <td class="px-4 py-2.5 font-medium" x-text="e.customer_name"></td>
+                    <td class="px-4 py-2.5 text-gray-500" x-text="e.store_clean"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmtN(e.redemptions)"></td>
+                    <td class="px-4 py-2.5 text-right" x-text="fmtN(e.units)"></td>
+                    <td class="px-4 py-2.5 text-right font-semibold text-red-500" x-text="fmt(e.cost)"></td>
+                    <td class="px-4 py-2.5 text-xs text-gray-500 max-w-xs truncate" x-text="e.products"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </template>
+</section>
+
+<!-- ════════════════════════════════════════════════════
+     DATA MANAGER
+     ════════════════════════════════════════════════════ -->
+<section x-show="view==='datamanager'" x-cloak>
+  <div class="grid lg:grid-cols-2 gap-6">
+
+    <!-- Upload Panel -->
+    <div class="bg-white rounded-xl border shadow-sm p-6">
+      <h3 class="text-lg font-semibold text-gray-800 mb-4">Upload CSV Files</h3>
+      <div class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-thrive-400 transition-colors"
+           @dragover.prevent="$el.classList.add('border-thrive-500','bg-thrive-50')"
+           @dragleave.prevent="$el.classList.remove('border-thrive-500','bg-thrive-50')"
+           @drop.prevent="$el.classList.remove('border-thrive-500','bg-thrive-50'); handleDrop($event)">
+        <svg class="mx-auto h-12 w-12 text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+        </svg>
+        <p class="text-gray-600 mb-2">Drag & drop CSV files here</p>
+        <p class="text-gray-400 text-sm mb-4">or</p>
+        <label class="inline-block bg-thrive-900 text-white px-5 py-2 rounded-lg cursor-pointer hover:bg-thrive-800 transition text-sm font-medium">
+          Choose Files
+          <input type="file" accept=".csv" multiple class="hidden" @change="handleFileSelect($event)">
+        </label>
+      </div>
+      <!-- Upload Progress -->
+      <div x-show="uploadStatus" x-cloak class="mt-4 p-3 rounded-lg text-sm"
+           :class="uploadStatus?.error ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'">
+        <span x-text="uploadStatus?.message"></span>
+      </div>
+    </div>
+
+    <!-- Status Panel -->
+    <div class="bg-white rounded-xl border shadow-sm p-6">
+      <h3 class="text-lg font-semibold text-gray-800 mb-4">Data Status</h3>
+      <div class="space-y-3">
+        <div class="flex justify-between items-center py-2 border-b">
+          <span class="text-gray-600">Total Rows</span>
+          <span class="font-semibold text-thrive-900" x-text="health ? fmtN(health.rows) : '-'"></span>
+        </div>
+        <div class="flex justify-between items-center py-2 border-b">
+          <span class="text-gray-600">Regular Transactions</span>
+          <span class="font-semibold text-thrive-900" x-text="health ? fmtN(health.regular_rows) : '-'"></span>
+        </div>
+        <div class="flex justify-between items-center py-2 border-b">
+          <span class="text-gray-600">Stores</span>
+          <span class="font-semibold text-thrive-900" x-text="health?.stores ?? '-'"></span>
+        </div>
+        <div class="flex justify-between items-center py-2 border-b">
+          <span class="text-gray-600">Brands</span>
+          <span class="font-semibold text-thrive-900" x-text="health?.brands ?? '-'"></span>
+        </div>
+        <div class="flex justify-between items-center py-2 border-b">
+          <span class="text-gray-600">CSV Files</span>
+          <span class="font-semibold text-thrive-900" x-text="dmFiles?.count ?? '-'"></span>
+        </div>
+      </div>
+      <button @click="reloadData()" :disabled="dmReloading"
+        class="mt-5 w-full bg-thrive-900 text-white py-2.5 rounded-lg font-medium hover:bg-thrive-800 disabled:opacity-50 disabled:cursor-wait transition text-sm">
+        <span x-show="!dmReloading">Reload Data</span>
+        <span x-show="dmReloading">Reloading...</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- File List -->
+  <div class="bg-white rounded-xl border shadow-sm mt-6">
+    <div class="px-5 py-3 border-b flex justify-between items-center">
+      <h3 class="text-sm font-semibold text-gray-700">CSV Files in Inbox</h3>
+      <button @click="loadDMFiles()" class="text-xs text-thrive-700 hover:text-thrive-900 font-medium">Refresh</button>
+    </div>
+    <div x-show="!dmFiles || dmFiles.count===0" class="px-5 py-12 text-center text-gray-400">
+      <p class="text-lg mb-1">No CSV files found</p>
+      <p class="text-sm">Upload files above to get started</p>
+    </div>
+    <div x-show="dmFiles && dmFiles.count>0" class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="text-left px-4 py-2.5 font-medium text-gray-600">File</th>
+            <th class="text-left px-4 py-2.5 font-medium text-gray-600">Path</th>
+            <th class="text-right px-4 py-2.5 font-medium text-gray-600">Size</th>
+            <th class="text-right px-4 py-2.5 font-medium text-gray-600">Modified</th>
+            <th class="text-center px-4 py-2.5 font-medium text-gray-600">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="f in (dmFiles?.files || [])" :key="f.path">
+            <tr class="border-t hover:bg-gray-50">
+              <td class="px-4 py-2.5 font-mono text-xs" x-text="f.name"></td>
+              <td class="px-4 py-2.5 text-gray-500 text-xs" x-text="f.path"></td>
+              <td class="px-4 py-2.5 text-right text-gray-600" x-text="formatSize(f.size)"></td>
+              <td class="px-4 py-2.5 text-right text-gray-500 text-xs" x-text="f.modified?.slice(0,10)"></td>
+              <td class="px-4 py-2.5 text-center">
+                <button @click="deleteFile(f.path)" class="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ═══════════════════ FOOTER ═══════════════════ -->
+<footer class="border-t bg-white mt-12 py-4 text-center text-xs text-gray-400">
+  Thrive Analytics Dashboard &mdash; Powered by Thrive Cannabis
+</footer>
+
+<!-- ═══════════════════ JAVASCRIPT ═══════════════════ -->
+<script>
+const COLORS = ['#1B5E20','#4CAF50','#81C784','#C8E6C9','#FF9800','#F44336','#2196F3','#9C27B0','#795548','#607D8B','#00BCD4','#8BC34A'];
+
+function dashboard() {
+  return {
+    // Navigation
+    view: 'overview',
+    masterTab: 'margin',
+
+    // State
+    loading: false,
+    error: null,
+
+    // Meta
+    brands: [],
+    stores: [],
+    health: null,
+
+    // Period — default to most recent complete month (much faster than All Time)
+    periodType: 'month',
+    selectedYear: new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear(),
+    selectedMonth: new Date().getMonth() === 0 ? 12 : new Date().getMonth(),
+    selectedQuarter: Math.ceil((new Date().getMonth() || 12) / 3),
+    selectedStore: '',
+
+    // Brand
+    selectedBrand: '',
+    brandSearch: '',
+    showBrandDD: false,
+
+    // Data
+    overviewData: null,
+    brandReport: null,
+    facingReport: null,
+    masterData: null,
+
+    // Data Manager
+    dmFiles: null,
+    dmReloading: false,
+    uploadStatus: null,
+
+    // Charts
+    _charts: {},
+
+    // ─── Computed ───
+    get filteredBrands() {
+      if (!this.brandSearch) return this.brands.slice(0, 30);
+      const q = this.brandSearch.toLowerCase();
+      return this.brands.filter(b => b.toLowerCase().includes(q)).slice(0, 30);
+    },
+
+    // ─── Init ───
+    async init() {
+      try {
+        const [h, b, s] = await Promise.all([
+          this.api('/api/health'),
+          this.api('/api/brands'),
+          this.api('/api/stores'),
+        ]);
+        this.health = h;
+        this.brands = b.brands;
+        this.stores = s.stores;
+        this.loadOverview();
+      } catch (e) {
+        this.error = 'Failed to connect to API: ' + e.message;
+      }
+    },
+
+    // ─── API ───
+    async api(path, params = {}) {
+      const url = new URL(path, location.origin);
+      for (const [k, v] of Object.entries(params)) {
+        if (v !== null && v !== undefined && v !== '') url.searchParams.set(k, v);
+      }
+      const r = await fetch(url);
+      if (!r.ok) {
+        const text = await r.text().catch(() => '');
+        throw new Error(`${r.status}: ${text || r.statusText}`);
+      }
+      return r.json();
+    },
+
+    periodParams() {
+      const p = { period_type: this.periodType };
+      if (this.periodType !== 'all') {
+        p.year = this.selectedYear;
+        if (this.periodType === 'month') p.month = this.selectedMonth;
+        if (this.periodType === 'quarter') p.quarter = this.selectedQuarter;
+      }
+      if (this.selectedStore) p.store = this.selectedStore;
+      return p;
+    },
+
+    // ─── Navigation ───
+    switchView(v) {
+      this.view = v;
+      this.error = null;
+      if (v === 'overview') this.loadOverview();
+      else if (v === 'brands' && this.selectedBrand) this.loadBrandReport();
+      else if (v === 'facing' && this.selectedBrand) this.loadFacingReport();
+      else if (v === 'master') this.loadMasterReport();
+      else if (v === 'datamanager') this.loadDMFiles();
+    },
+
+    selectBrand(b) {
+      this.selectedBrand = b;
+      this.brandSearch = b;
+      this.showBrandDD = false;
+      if (this.view === 'brands') this.loadBrandReport();
+      else if (this.view === 'facing') this.loadFacingReport();
+    },
+
+    switchMasterTab(tab) {
+      this.masterTab = tab;
+      this.loadMasterReport();
+    },
+
+    applyPeriod() {
+      if (this.view === 'overview') this.loadOverview();
+      else if (this.view === 'brands' && this.selectedBrand) this.loadBrandReport();
+      else if (this.view === 'facing' && this.selectedBrand) this.loadFacingReport();
+      else if (this.view === 'master') this.loadMasterReport();
+    },
+
+    // ─── Data Loaders ───
+    async loadOverview() {
+      this.loading = true;
+      this.error = null;
+      try {
+        this.overviewData = await this.api('/api/master/margin', this.periodParams());
+      } catch (e) { this.error = e.message; }
+      this.loading = false;
+      this.$nextTick(() => this.renderOverviewCharts());
+    },
+
+    async loadBrandReport() {
+      if (!this.selectedBrand) return;
+      this.loading = true;
+      this.error = null;
+      this.brandReport = null;
+      try {
+        this.brandReport = await this.api(
+          `/api/brands/${encodeURIComponent(this.selectedBrand)}/report`,
+          this.periodParams()
+        );
+      } catch (e) { this.error = e.message; }
+      this.loading = false;
+      this.$nextTick(() => this.renderBrandCharts());
+    },
+
+    async loadFacingReport() {
+      if (!this.selectedBrand) return;
+      this.loading = true;
+      this.error = null;
+      this.facingReport = null;
+      try {
+        this.facingReport = await this.api(
+          `/api/brands/${encodeURIComponent(this.selectedBrand)}/facing`,
+          this.periodParams()
+        );
+      } catch (e) { this.error = e.message; }
+      this.loading = false;
+      this.$nextTick(() => this.renderFacingCharts());
+    },
+
+    async loadMasterReport() {
+      this.loading = true;
+      this.error = null;
+      this.masterData = null;
+      try {
+        this.masterData = await this.api(`/api/master/${this.masterTab}`, this.periodParams());
+      } catch (e) { this.error = e.message; }
+      this.loading = false;
+    },
+
+    // ─── Chart Helper ───
+    _c(id, config) {
+      if (this._charts[id]) { this._charts[id].destroy(); delete this._charts[id]; }
+      const el = document.getElementById(id);
+      if (!el) return;
+      this._charts[id] = new Chart(el, config);
+    },
+
+    // ─── Overview Charts ───
+    renderOverviewCharts() {
+      if (!this.overviewData) return;
+      const d = this.overviewData;
+
+      // Store Revenue
+      const stores = d.by_store || [];
+      this._c('chart-store-revenue', {
+        type: 'bar',
+        data: {
+          labels: stores.map(s => s.name.replace('Thrive Cannabis ', '').replace('Thrive ', '')),
+          datasets: [{
+            label: 'Revenue',
+            data: stores.map(s => s.total_revenue),
+            backgroundColor: '#1B5E20',
+            borderRadius: 6,
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { x: { ticks: { callback: v => '$' + (v >= 1e6 ? (v/1e6).toFixed(1)+'M' : (v/1e3).toFixed(0)+'K') } } }
+        }
+      });
+
+      // Category Doughnut
+      const cats = d.by_category || [];
+      this._c('chart-category-doughnut', {
+        type: 'doughnut',
+        data: {
+          labels: cats.map(c => c.name),
+          datasets: [{ data: cats.map(c => c.total_revenue), backgroundColor: COLORS.slice(0, cats.length) }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }
+        }
+      });
+
+      // Category Margin
+      this._c('chart-category-margin', {
+        type: 'bar',
+        data: {
+          labels: cats.map(c => c.name),
+          datasets: [
+            { label: 'FP Margin', data: cats.map(c => c.full_price_margin), backgroundColor: '#1B5E20', borderRadius: 4 },
+            { label: 'Disc Margin', data: cats.map(c => c.discounted_margin), backgroundColor: '#FF9800', borderRadius: 4 },
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
+          scales: { y: { ticks: { callback: v => v + '%' } } }
+        }
+      });
+    },
+
+    // ─── Brand Charts ───
+    renderBrandCharts() {
+      if (!this.brandReport) return;
+      const d = this.brandReport;
+
+      // Trend
+      if (d.trend?.length) {
+        this._c('chart-brand-trend', {
+          type: 'line',
+          data: {
+            labels: d.trend.map(t => t.period),
+            datasets: [
+              { label: 'Revenue', data: d.trend.map(t => t.revenue), borderColor: '#1B5E20', backgroundColor: 'rgba(27,94,32,0.08)', fill: true, tension: 0.3, pointRadius: 3 },
+              { label: 'Profit', data: d.trend.map(t => t.profit), borderColor: '#4CAF50', borderDash: [5,5], tension: 0.3, pointRadius: 2 },
+            ]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } },
+            scales: { y: { ticks: { callback: v => '$' + (v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v) } } }
+          }
+        });
+      }
+
+      // Category Doughnut
+      if (d.category_breakdown?.length) {
+        this._c('chart-brand-categories', {
+          type: 'doughnut',
+          data: {
+            labels: d.category_breakdown.map(c => c.category_clean),
+            datasets: [{ data: d.category_breakdown.map(c => c.revenue), backgroundColor: COLORS }]
+          },
+          options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } } }
+        });
+      }
+
+      // Share of Category
+      if (d.share_of_category?.length) {
+        this._c('chart-brand-soc', {
+          type: 'bar',
+          data: {
+            labels: d.share_of_category.map(s => s.category),
+            datasets: [
+              { label: 'Revenue Share %', data: d.share_of_category.map(s => s.revenue_share_pct), backgroundColor: '#4CAF50', borderRadius: 6 },
+              { label: 'Units Share %', data: d.share_of_category.map(s => s.units_share_pct), backgroundColor: '#C8E6C9', borderRadius: 6 },
+            ]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } },
+            scales: { y: { ticks: { callback: v => v + '%' } } }
+          }
+        });
+      }
+
+      // Discount Depth
+      if (d.discount_depth?.length) {
+        this._c('chart-brand-depth', {
+          type: 'bar',
+          data: {
+            labels: d.discount_depth.map(x => x.tier),
+            datasets: [
+              { label: '% of Transactions', data: d.discount_depth.map(x => x.pct_of_transactions), backgroundColor: COLORS, borderRadius: 6 },
+            ]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { ticks: { callback: v => v + '%' }, title: { display: true, text: '% of Transactions' } } }
+          }
+        });
+      }
+    },
+
+    // ─── Facing Charts ───
+    renderFacingCharts() {
+      if (!this.facingReport) return;
+      const d = this.facingReport;
+
+      if (d.share_of_category?.length) {
+        this._c('chart-facing-soc', {
+          type: 'bar',
+          data: {
+            labels: d.share_of_category.map(s => s.category),
+            datasets: [
+              { label: 'Revenue Share %', data: d.share_of_category.map(s => s.revenue_share_pct), backgroundColor: '#4CAF50', borderRadius: 6 },
+              { label: 'Units Share %', data: d.share_of_category.map(s => s.units_share_pct), backgroundColor: '#C8E6C9', borderRadius: 6 },
+            ]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } },
+            scales: { y: { ticks: { callback: v => v + '%' } } }
+          }
+        });
+      }
+
+      if (d.velocity_by_category?.length) {
+        this._c('chart-facing-velocity', {
+          type: 'bar',
+          data: {
+            labels: d.velocity_by_category.map(v => v.category),
+            datasets: [
+              { label: 'Brand Units/Day', data: d.velocity_by_category.map(v => v.brand_units_per_day), backgroundColor: '#1B5E20', borderRadius: 4 },
+              { label: 'Category Avg/Day', data: d.velocity_by_category.map(v => v.category_avg_units_per_day), backgroundColor: '#C8E6C9', borderRadius: 4 },
+            ]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } },
+          }
+        });
+      }
+    },
+
+    // ─── Data Manager ───
+    async loadDMFiles() {
+      try {
+        this.dmFiles = await this.api('/api/upload/files');
+      } catch (e) { this.error = e.message; }
+    },
+
+    async handleFileSelect(event) {
+      const files = event.target.files;
+      if (files.length) await this.uploadFiles(files);
+      event.target.value = '';
+    },
+
+    async handleDrop(event) {
+      const files = event.dataTransfer.files;
+      if (files.length) await this.uploadFiles(files);
+    },
+
+    async uploadFiles(fileList) {
+      this.uploadStatus = null;
+      const formData = new FormData();
+      let csvCount = 0;
+      for (const f of fileList) {
+        if (f.name.toLowerCase().endsWith('.csv')) {
+          formData.append('files', f);
+          csvCount++;
+        }
+      }
+      if (!csvCount) {
+        this.uploadStatus = { error: true, message: 'No .csv files selected' };
+        return;
+      }
+      try {
+        const r = await fetch('/api/upload', { method: 'POST', body: formData });
+        if (!r.ok) {
+          const text = await r.text().catch(() => '');
+          throw new Error(text || r.statusText);
+        }
+        const data = await r.json();
+        this.uploadStatus = { error: false, message: `Uploaded ${data.count} file(s) successfully` };
+        this.loadDMFiles();
+      } catch (e) {
+        this.uploadStatus = { error: true, message: 'Upload failed: ' + e.message };
+      }
+    },
+
+    async deleteFile(path) {
+      if (!confirm('Delete ' + path + '?')) return;
+      try {
+        const r = await fetch('/api/upload/' + encodeURIComponent(path), { method: 'DELETE' });
+        if (!r.ok) throw new Error(await r.text());
+        this.loadDMFiles();
+      } catch (e) { this.error = e.message; }
+    },
+
+    async reloadData() {
+      this.dmReloading = true;
+      try {
+        const r = await this.api('/api/reload', {});
+        this.health = await this.api('/api/health');
+        this.uploadStatus = { error: false, message: `Data reloaded: ${this.fmtN(r.rows)} rows` };
+      } catch (e) {
+        this.uploadStatus = { error: true, message: 'Reload failed: ' + e.message };
+      }
+      this.dmReloading = false;
+    },
+
+    formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    },
+
+    // ─── Formatters ───
+    fmt(n) {
+      if (n == null || isNaN(n)) return '-';
+      const abs = Math.abs(n);
+      const formatted = abs >= 1e6
+        ? '$' + (abs/1e6).toFixed(2) + 'M'
+        : '$' + Number(abs).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      return n < 0 ? '-' + formatted : formatted;
+    },
+    fmtN(n) { return n == null || isNaN(n) ? '-' : Number(n).toLocaleString(); },
+    pct(n) { return n == null || isNaN(n) ? '-' : Number(n).toFixed(1) + '%'; },
+  }
+}
+</script>
+</body>
+</html>

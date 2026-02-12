@@ -182,7 +182,7 @@ class DataStore:
     def regular_count(self) -> int:
         if self.df.empty:
             return 0
-        return (self.df["transaction_type"] == "REGULAR").sum()
+        return int((self.df["transaction_type"] == "REGULAR").sum())
 
     # ------------------------------------------------------------------
     # Category & brand lookups (for brand reports)

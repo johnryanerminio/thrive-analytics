@@ -2066,8 +2066,8 @@
       <div x-show="masterTab === 'customers'" x-cloak>
         <template x-if="masterData && masterTab === 'customers'">
           <div>
-            <!-- 4+4 KPIs -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <!-- KPIs -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Total Customers</div>
                 <div class="text-2xl font-bold text-primary" x-text="fmtN(masterData.kpis?.total_customers)"></div>
@@ -2077,30 +2077,12 @@
                 <div class="text-2xl font-bold text-primary" x-text="fmtCurrency(masterData.kpis?.avg_spend)"></div>
               </div>
               <div class="kpi-card">
-                <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Avg Txns</div>
-                <div class="text-2xl font-bold text-primary" x-text="masterData.kpis?.avg_transactions?.toFixed(1) || '-'"></div>
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Total Revenue</div>
+                <div class="text-2xl font-bold text-primary" x-text="fmtCurrency(masterData.kpis?.total_revenue)"></div>
               </div>
               <div class="kpi-card">
-                <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Top 10% Revenue</div>
-                <div class="text-2xl font-bold text-gold" x-text="fmtPct(masterData.kpis?.top_10_revenue_pct)"></div>
-              </div>
-            </div>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div class="kpi-card">
-                <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">VIP Customers</div>
-                <div class="text-2xl font-bold text-success" x-text="fmtN(masterData.kpis?.vip_count)"></div>
-              </div>
-              <div class="kpi-card">
-                <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Regular</div>
-                <div class="text-2xl font-bold text-primary" x-text="fmtN(masterData.kpis?.regular_count)"></div>
-              </div>
-              <div class="kpi-card">
-                <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Occasional</div>
-                <div class="text-2xl font-bold text-primary" x-text="fmtN(masterData.kpis?.occasional_count)"></div>
-              </div>
-              <div class="kpi-card">
-                <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">One-Time</div>
-                <div class="text-2xl font-bold text-destructive" x-text="fmtN(masterData.kpis?.one_time_count)"></div>
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-destructive-400 mb-1">Discount Rate</div>
+                <div class="text-2xl font-bold text-destructive" x-text="fmtPct(masterData.kpis?.discount_rate)"></div>
               </div>
             </div>
 
@@ -2182,32 +2164,14 @@
         <template x-if="masterData && masterTab === 'rewards'">
           <div>
             <!-- 4+4 KPIs -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Total Redemptions</div>
                 <div class="text-2xl font-bold text-primary" x-text="fmtN(masterData.kpis?.total_redemptions)"></div>
               </div>
               <div class="kpi-card">
-                <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Total Units</div>
-                <div class="text-2xl font-bold text-primary" x-text="fmtN(masterData.kpis?.total_units)"></div>
-              </div>
-              <div class="kpi-card">
-                <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Retail Value</div>
-                <div class="text-2xl font-bold text-primary" x-text="fmtCurrency(masterData.kpis?.retail_value)"></div>
-              </div>
-              <div class="kpi-card">
-                <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Total Cost</div>
-                <div class="text-2xl font-bold text-destructive" x-text="fmtCurrency(masterData.kpis?.total_cost)"></div>
-              </div>
-            </div>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Net Cost</div>
                 <div class="text-2xl font-bold text-destructive" x-text="fmtCurrency(masterData.kpis?.net_cost)"></div>
-              </div>
-              <div class="kpi-card">
-                <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Avg Cost/Redemption</div>
-                <div class="text-2xl font-bold text-primary" x-text="fmtCurrency(masterData.kpis?.avg_cost_per_redemption)"></div>
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Unique Rewards</div>

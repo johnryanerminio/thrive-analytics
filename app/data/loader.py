@@ -39,10 +39,13 @@ def _parse_file_dates(filepath: Path) -> tuple[str | None, str | None]:
 def discover_csvs(
     inbox: Path = INBOX_FOLDER,
     keywords: list[str] | None = None,
+    exclude_keywords: list[str] | None = None,
 ) -> list[Path]:
     """Recursively find sales CSVs in inbox (including year subdirs)."""
     if keywords is None:
         keywords = SALES_KEYWORDS
+        # When using default sales keywords, exclude BT and customer files
+        exclude_keywords = BT_PERFORMANCE_KEYWORDS + CUSTOMER_KEYWORDS
 
     matches: list[Path] = []
     if not inbox.exists():
@@ -50,6 +53,8 @@ def discover_csvs(
 
     for csv_file in inbox.rglob("*.csv"):
         filename_lower = csv_file.name.lower()
+        if exclude_keywords and any(ex in filename_lower for ex in exclude_keywords):
+            continue
         if any(kw in filename_lower for kw in keywords):
             matches.append(csv_file)
 

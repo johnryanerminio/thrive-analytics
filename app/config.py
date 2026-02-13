@@ -19,7 +19,7 @@ SHARES_FOLDER = _data_dir / "shares"
 # ---------------------------------------------------------------------------
 # File-discovery patterns (keywords matched case-insensitively in filename)
 # ---------------------------------------------------------------------------
-SALES_KEYWORDS = ["margin", "line_item", "john"]
+SALES_KEYWORDS = ["margin", "line_item", "john", "sales performance"]
 BT_PERFORMANCE_KEYWORDS = ["bt sales", "bt_sales", "budtender"]
 CUSTOMER_KEYWORDS = ["customer"]
 

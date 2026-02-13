@@ -24,8 +24,9 @@ from app.api.router_dashboard import router as dashboard_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Load all data at startup."""
-    from app.config import INBOX_FOLDER
-    INBOX_FOLDER.mkdir(parents=True, exist_ok=True)
+    from app.config import INBOX_FOLDER, BRAND_REPORTS_FOLDER, REPORTS_FOLDER, SHARES_FOLDER
+    for d in [INBOX_FOLDER, BRAND_REPORTS_FOLDER, REPORTS_FOLDER, SHARES_FOLDER]:
+        d.mkdir(parents=True, exist_ok=True)
 
     store = DataStore()
     store.load()

@@ -2492,32 +2492,29 @@ function dashboard() {
     },
 
     async init() {
-      try {
-        const [h, b, s, p] = await Promise.all([
-          this.api('/api/health'),
-          this.api('/api/brands'),
-          this.api('/api/stores'),
-          this.api('/api/periods').catch(() => ({periods:[]})),
-        ]);
-        this.health = h;
-        this.brands = b.brands || b;
-        this.stores = s.stores || s;
-        this.periods = p.periods || p || [];
-        // Default to most recent month
-        if (this.periods.length) {
-          const latest = this.periods[this.periods.length - 1];
-          this.startYear = latest.year;
-          this.startMonth = latest.month;
-          this.periodType = 'month';
-          this.periodLabel = MONTHS[latest.month - 1] + ' ' + latest.year;
-        } else {
-          this.periodType = 'all';
-          this.periodLabel = 'All Time';
-        }
-        this.loadCurrentView();
-      } catch (e) {
-        this.error = 'Failed to connect: ' + e.message;
+      // Each call catches independently so one failure doesn't break all
+      const [h, b, s, p] = await Promise.all([
+        this.api('/api/health').catch(() => null),
+        this.api('/api/brands').catch(() => ({brands:[]})),
+        this.api('/api/stores').catch(() => ({stores:[]})),
+        this.api('/api/periods').catch(() => ({periods:[]})),
+      ]);
+      if (h) this.health = h;
+      this.brands = b.brands || b || [];
+      this.stores = s.stores || s || [];
+      this.periods = p.periods || p || [];
+      // Default to most recent month
+      if (this.periods.length) {
+        const latest = this.periods[this.periods.length - 1];
+        this.startYear = latest.year;
+        this.startMonth = latest.month;
+        this.periodType = 'month';
+        this.periodLabel = MONTHS[latest.month - 1] + ' ' + latest.year;
+      } else {
+        this.periodType = 'all';
+        this.periodLabel = 'All Time';
       }
+      this.loadCurrentView();
     },
 
     async api(path, params = {}) {
@@ -3006,18 +3003,56 @@ function dashboard() {
       this.uploadSuccess = null; this.uploadError = null; this.uploadProgress = 0;
       const formData = new FormData();
       let count = 0;
+      let totalSize = 0;
       for (const f of fileList) {
-        if (f.name.toLowerCase().endsWith('.csv')) { formData.append('files', f); count++; }
+        if (f.name.toLowerCase().endsWith('.csv')) { formData.append('files', f); count++; totalSize += f.size; }
       }
       if (!count) { this.uploadError = 'No CSV files selected'; this.uploadProgress = null; return; }
+
+      const self = this;
       try {
-        const r = await fetch('/api/upload', {method:'POST', body:formData});
-        if (!r.ok) throw new Error(await r.text().catch(()=>r.statusText));
-        const data = await r.json();
-        this.uploadSuccess = 'Uploaded '+data.count+' file(s) successfully';
-        this.uploadProgress = null;
+        const data = await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) self.uploadProgress = Math.round((e.loaded / e.total) * 100);
+          });
+          xhr.addEventListener('load', () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try { resolve(JSON.parse(xhr.responseText)); } catch { resolve({count}); }
+            } else {
+              reject(new Error(xhr.responseText || xhr.statusText || 'Upload failed (HTTP ' + xhr.status + ')'));
+            }
+          });
+          xhr.addEventListener('error', () => reject(new Error('Network error — check file size and connection')));
+          xhr.addEventListener('timeout', () => reject(new Error('Upload timed out — file may be too large')));
+          xhr.timeout = 300000; // 5 minutes
+          xhr.open('POST', '/api/upload');
+          xhr.send(formData);
+        });
+
+        this.uploadSuccess = 'Uploaded ' + data.count + ' file(s) — reloading data...';
+        this.uploadProgress = 100;
         this.loadDMFiles();
-      } catch(e) { this.uploadError = 'Upload failed: '+e.message; this.uploadProgress = null; }
+
+        // Auto-reload data after upload
+        try {
+          const res = await fetch('/api/reload', {method:'POST'});
+          if (res.ok) {
+            const [h, b, s, p] = await Promise.all([
+              this.api('/api/health').catch(() => null),
+              this.api('/api/brands').catch(() => ({brands:[]})),
+              this.api('/api/stores').catch(() => ({stores:[]})),
+              this.api('/api/periods').catch(() => ({periods:[]})),
+            ]);
+            if (h) this.health = h;
+            this.brands = b.brands || b || [];
+            this.stores = s.stores || s || [];
+            this.periods = p.periods || p || [];
+            this.uploadSuccess = 'Uploaded ' + data.count + ' file(s) and reloaded — ' + this.fmtN(this.health?.rows) + ' rows';
+          }
+        } catch(e) { /* reload failed but upload succeeded */ }
+        this.uploadProgress = null;
+      } catch(e) { this.uploadError = 'Upload failed: ' + e.message; this.uploadProgress = null; }
     },
 
     async deleteFile(path) {
@@ -3033,10 +3068,19 @@ function dashboard() {
       try {
         const res = await fetch('/api/reload', {method:'POST'});
         if (!res.ok) throw new Error(await res.text());
-        const [h, b, s] = await Promise.all([this.api('/api/health'),this.api('/api/brands'),this.api('/api/stores')]);
-        this.health = h; this.brands = b.brands||b; this.stores = s.stores||s;
-        this.uploadSuccess = 'Data reloaded: '+this.fmtN(h.rows)+' rows';
-      } catch(e) { this.uploadError = 'Reload failed: '+e.message; }
+        const [h, b, s, p] = await Promise.all([
+          this.api('/api/health').catch(() => null),
+          this.api('/api/brands').catch(() => ({brands:[]})),
+          this.api('/api/stores').catch(() => ({stores:[]})),
+          this.api('/api/periods').catch(() => ({periods:[]})),
+        ]);
+        if (h) this.health = h;
+        this.brands = b.brands || b || [];
+        this.stores = s.stores || s || [];
+        this.periods = p.periods || p || [];
+        this.uploadSuccess = 'Data reloaded: ' + this.fmtN(this.health?.rows) + ' rows, ' + this.stores.length + ' stores';
+        this.loadDMFiles();
+      } catch(e) { this.uploadError = 'Reload failed: ' + e.message; }
       this.dmReloading = false;
     },
 

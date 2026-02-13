@@ -27,24 +27,24 @@ def health(store: DataStore = Depends(get_store_or_empty)):
 
 
 @router.get("/stores", response_model=StoresResponse)
-def list_stores(store: DataStore = Depends(get_store)):
-    return StoresResponse(stores=store.stores())
+def list_stores(store: DataStore = Depends(get_store_or_empty)):
+    return StoresResponse(stores=store.stores() if not store.df.empty else [])
 
 
 @router.get("/brands", response_model=BrandsResponse)
-def list_brands(store: DataStore = Depends(get_store)):
-    brands = store.brands()
+def list_brands(store: DataStore = Depends(get_store_or_empty)):
+    brands = store.brands() if not store.df.empty else []
     return BrandsResponse(brands=brands, count=len(brands))
 
 
 @router.get("/categories", response_model=CategoriesResponse)
-def list_categories(store: DataStore = Depends(get_store)):
-    return CategoriesResponse(categories=store.categories())
+def list_categories(store: DataStore = Depends(get_store_or_empty)):
+    return CategoriesResponse(categories=store.categories() if not store.df.empty else [])
 
 
 @router.get("/periods", response_model=PeriodsResponse)
-def list_periods(store: DataStore = Depends(get_store)):
-    return PeriodsResponse(periods=store.periods_available())
+def list_periods(store: DataStore = Depends(get_store_or_empty)):
+    return PeriodsResponse(periods=store.periods_available() if not store.df.empty else [])
 
 
 @router.post("/reload")

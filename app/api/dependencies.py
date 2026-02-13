@@ -40,13 +40,17 @@ def get_store_or_empty() -> DataStore:
 # ---------------------------------------------------------------------------
 
 def parse_period(
-    period_type: Optional[str] = Query(None, description="month|quarter|year|custom|all"),
+    period_type: Optional[str] = Query(None, description="month|quarter|year|range|custom|all"),
     year: Optional[int] = Query(None),
     month: Optional[int] = Query(None),
     quarter: Optional[int] = Query(None),
     start_date: Optional[str] = Query(None, description="YYYY-MM-DD"),
     end_date: Optional[str] = Query(None, description="YYYY-MM-DD"),
     store: Optional[str] = Query(None, description="Store name filter"),
+    start_year: Optional[int] = Query(None, description="Range start year"),
+    start_month: Optional[int] = Query(None, description="Range start month (1-12)"),
+    end_year: Optional[int] = Query(None, description="Range end year"),
+    end_month: Optional[int] = Query(None, description="Range end month (1-12)"),
 ) -> PeriodFilter | None:
     """Parse period query parameters into a PeriodFilter."""
     if period_type is None:
@@ -70,6 +74,10 @@ def parse_period(
         start_date=sd,
         end_date=ed,
         store=store,
+        start_year=start_year,
+        start_month=start_month,
+        end_year=end_year,
+        end_month=end_month,
     )
 
 

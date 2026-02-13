@@ -18,6 +18,7 @@ from app.api.router_brands import router as brands_router
 from app.api.router_master import router as master_router
 from app.api.router_reports import router as reports_router
 from app.api.router_upload import router as upload_router
+from app.api.router_dashboard import router as dashboard_router
 
 
 @asynccontextmanager
@@ -59,6 +60,7 @@ def create_app() -> FastAPI:
     app.include_router(master_router)
     app.include_router(reports_router)
     app.include_router(upload_router)
+    app.include_router(dashboard_router)
 
     # Serve dashboard at /
     static_dir = Path(__file__).parent / "static"

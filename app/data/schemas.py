@@ -14,6 +14,7 @@ class PeriodType(str, Enum):
     QUARTER = "quarter"
     YEAR = "year"
     CUSTOM = "custom"
+    RANGE = "range"
     ALL = "all"
 
 
@@ -27,10 +28,25 @@ class PeriodFilter:
     start_date: Optional[dt.date] = None
     end_date: Optional[dt.date] = None
     store: Optional[str] = None          # optional store filter
+    # Range fields (for multi-month picker)
+    start_year: Optional[int] = None
+    start_month: Optional[int] = None    # 1-12
+    end_year: Optional[int] = None
+    end_month: Optional[int] = None      # 1-12
 
     def resolve(self) -> tuple[Optional[dt.date], Optional[dt.date]]:
         """Return (start_date, end_date) based on period_type."""
         if self.period_type == PeriodType.ALL:
+            return None, None
+
+        if self.period_type == PeriodType.RANGE:
+            if self.start_year and self.start_month and self.end_year and self.end_month:
+                s = dt.date(self.start_year, self.start_month, 1)
+                if self.end_month == 12:
+                    e = dt.date(self.end_year + 1, 1, 1) - dt.timedelta(days=1)
+                else:
+                    e = dt.date(self.end_year, self.end_month + 1, 1) - dt.timedelta(days=1)
+                return s, e
             return None, None
 
         if self.period_type == PeriodType.CUSTOM:
@@ -77,6 +93,12 @@ class PeriodFilter:
             return f"Q{self.quarter} {self.year}"
         if self.period_type == PeriodType.YEAR and self.year:
             return str(self.year)
+        if self.period_type == PeriodType.RANGE:
+            if self.start_year and self.start_month and self.end_year and self.end_month:
+                s = dt.date(self.start_year, self.start_month, 1)
+                e = dt.date(self.end_year, self.end_month, 1)
+                return f"{s:%b %Y} to {e:%b %Y}"
+            return "Range"
         if self.period_type == PeriodType.CUSTOM:
             s = self.start_date.isoformat() if self.start_date else "?"
             e = self.end_date.isoformat() if self.end_date else "?"

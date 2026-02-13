@@ -8,7 +8,10 @@ from pathlib import Path
 
 import pandas as pd
 
-from app.config import INBOX_FOLDER, SALES_KEYWORDS, BT_PERFORMANCE_KEYWORDS, CUSTOMER_KEYWORDS
+from app.config import (
+    INBOX_FOLDER, SALES_KEYWORDS, BT_PERFORMANCE_KEYWORDS, CUSTOMER_KEYWORDS,
+    INTERNAL_BRAND_COSTS, COST_CORRECTION_YEARS, PRE_ROLL_CATEGORIES,
+)
 from app.data.normalize import normalize_columns, normalize_categories, classify_transaction, classify_deal_type
 
 
@@ -87,6 +90,48 @@ def load_single_csv(filepath: Path) -> pd.DataFrame:
     return df
 
 
+def apply_internal_cost_corrections(df: pd.DataFrame) -> pd.DataFrame:
+    """Correct cost data for internal brands where Flowhub cost is unreliable.
+
+    2024: Replace cost only when cost_per_item < $1/unit (was $0 or pennies).
+    2025: Replace ALL costs (were inflated/inaccurate).
+    2026+: No changes — costs are accurate.
+    """
+    if df.empty or "year" not in df.columns:
+        return df
+
+    total_corrected = 0
+    is_preroll = df["category_clean"].isin(PRE_ROLL_CATEGORIES)
+
+    for brand_upper, prices in INTERNAL_BRAND_COSTS.items():
+        brand_mask = df["brand_clean"].str.upper() == brand_upper
+
+        for year_val, mode in COST_CORRECTION_YEARS.items():
+            year_mask = brand_mask & (df["year"] == year_val)
+            if mode == "conditional":
+                year_mask = year_mask & (df["cost_per_item"] < 1.0)
+
+            count = year_mask.sum()
+            if count == 0:
+                continue
+
+            # Apply per-unit cost: pre-roll categories get $4, others get default
+            new_cost_per_unit = pd.Series(prices["default"], index=df.index)
+            new_cost_per_unit = new_cost_per_unit.where(~is_preroll, prices["pre_roll"])
+
+            df.loc[year_mask, "cost"] = df.loc[year_mask, "quantity"] * new_cost_per_unit[year_mask]
+            df.loc[year_mask, "cost_per_item"] = new_cost_per_unit[year_mask]
+            df.loc[year_mask, "net_profit"] = df.loc[year_mask, "actual_revenue"] - df.loc[year_mask, "cost"]
+
+            total_corrected += count
+            print(f"  Cost correction: {brand_upper} {year_val} ({mode}) — {count:,} rows adjusted")
+
+    if total_corrected:
+        print(f"  Total cost corrections: {total_corrected:,} rows across {len(INTERNAL_BRAND_COSTS)} brands")
+
+    return df
+
+
 def load_all_csvs(
     inbox: Path = INBOX_FOLDER,
     keywords: list[str] | None = None,
@@ -123,6 +168,9 @@ def load_all_csvs(
     # Classify transactions
     df["transaction_type"] = df.apply(classify_transaction, axis=1)
     df["deal_type"] = df.apply(classify_deal_type, axis=1)
+
+    # Apply internal brand cost corrections (2024 + 2025)
+    df = apply_internal_cost_corrections(df)
 
     # Drop internal dedup columns
     df = df.drop(columns=["_source_file", "_source_end_date"])

@@ -50,7 +50,20 @@ def sanitize_for_json(obj):
     """Recursively convert numpy/pandas types to native Python for JSON serialization."""
     import math
     if isinstance(obj, dict):
-        return {k: sanitize_for_json(v) for k, v in obj.items()}
+        clean = {}
+        for k, v in obj.items():
+            # Sanitize keys: skip NaN/None keys, convert non-string keys to str
+            if k is None:
+                continue
+            if isinstance(k, float) and (math.isnan(k) or math.isinf(k)):
+                continue
+            try:
+                if isinstance(k, (np.floating,)) and (math.isnan(float(k)) or math.isinf(float(k))):
+                    continue
+            except (TypeError, ValueError):
+                pass
+            clean[str(k) if not isinstance(k, str) else k] = sanitize_for_json(v)
+        return clean
     if isinstance(obj, (list, tuple)):
         return [sanitize_for_json(v) for v in obj]
     if isinstance(obj, (np.integer,)):

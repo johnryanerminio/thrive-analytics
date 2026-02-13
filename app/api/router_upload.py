@@ -54,7 +54,7 @@ def list_files():
                 "size": stat.st_size,
                 "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
             })
-    return {"files": files, "count": len(files)}
+    return {"files": files, "count": len(files), "inbox_path": str(INBOX_FOLDER)}
 
 
 @router.delete("/upload/{filename:path}")

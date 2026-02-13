@@ -28,6 +28,17 @@ async def lifespan(app: FastAPI):
     for d in [INBOX_FOLDER, BRAND_REPORTS_FOLDER, REPORTS_FOLDER, SHARES_FOLDER]:
         d.mkdir(parents=True, exist_ok=True)
 
+    # Diagnostic: show exactly where data lives
+    import os
+    print(f"  THRIVE_DATA_DIR = {os.environ.get('THRIVE_DATA_DIR', '(not set)')}")
+    print(f"  INBOX_FOLDER = {INBOX_FOLDER}")
+    print(f"  INBOX_FOLDER exists = {INBOX_FOLDER.exists()}")
+    if INBOX_FOLDER.exists():
+        all_csvs = list(INBOX_FOLDER.rglob("*.csv"))
+        print(f"  CSV files found in inbox: {len(all_csvs)}")
+        for f in all_csvs[:10]:
+            print(f"    - {f.relative_to(INBOX_FOLDER)} ({f.stat().st_size:,} bytes)")
+
     store = DataStore()
     store.load()
     set_store(store)

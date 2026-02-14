@@ -3134,33 +3134,11 @@ function dashboard() {
         } catch(e) { failed.push(e.message); }
       }
 
-      this.uploadProgress = 100;
+      this.uploadProgress = null;
       this.loadDMFiles();
 
       const failMsg = failed.length ? ` (${failed.length} failed: ${failed.join(', ')})` : '';
-      this.uploadSuccess = `Uploaded ${uploaded} of ${csvFiles.length} file(s)${failMsg} — reloading data...`;
-
-      // Auto-reload data after upload
-      try {
-        const res = await fetch('/api/reload', {method:'POST'});
-        if (res.ok) {
-          // Wait a moment for background reload to start, then poll health
-          await new Promise(r => setTimeout(r, 2000));
-          const [h, b, s, p] = await Promise.all([
-            this.api('/api/health').catch(() => null),
-            this.api('/api/brands').catch(() => ({brands:[]})),
-            this.api('/api/stores').catch(() => ({stores:[]})),
-            this.api('/api/periods').catch(() => ({periods:[]})),
-          ]);
-          if (h) this.health = h;
-          this.brands = b.brands || b || [];
-          this.internalBrands = new Set((b.internal_brands || []).map(x => x.toUpperCase()));
-          this.stores = s.stores || s || [];
-          this.periods = p.periods || p || [];
-          this.uploadSuccess = `Uploaded ${uploaded} file(s)${failMsg} — reloaded: ${this.fmtN(this.health?.rows)} rows`;
-        }
-      } catch(e) { /* reload failed but upload succeeded */ }
-      this.uploadProgress = null;
+      this.uploadSuccess = `Uploaded ${uploaded} of ${csvFiles.length} file(s)${failMsg}. Click "Reload Data" when you're done uploading all files.`;
     },
 
     async deleteFile(path) {

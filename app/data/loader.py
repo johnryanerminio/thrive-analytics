@@ -82,10 +82,21 @@ def discover_customer_csvs(inbox: Path = INBOX_FOLDER) -> list[Path]:
 # ---------------------------------------------------------------------------
 
 def load_single_csv(filepath: Path) -> pd.DataFrame:
-    """Load one CSV, normalise columns and categories."""
-    df = pd.read_csv(filepath)
+    """Load one CSV, normalise columns and categories, minimize memory."""
+    # Only read columns we actually use
+    from app.config import COLUMN_MAP
+    usecols = [c for c in COLUMN_MAP.keys()]
+    try:
+        df = pd.read_csv(filepath, usecols=lambda c: c in usecols)
+    except Exception:
+        df = pd.read_csv(filepath)  # fallback if columns don't match
     df = normalize_columns(df)
     df = normalize_categories(df)
+
+    # Convert strings to category early to save memory during concat
+    for col in ["brand_clean", "store_clean", "category_clean", "product"]:
+        if col in df.columns:
+            df[col] = df[col].astype("category")
 
     # Tag with source file metadata for dedup ordering
     _, end_date = _parse_file_dates(filepath)
@@ -141,34 +152,47 @@ def load_all_csvs(
     inbox: Path = INBOX_FOLDER,
     keywords: list[str] | None = None,
 ) -> pd.DataFrame:
-    """Discover all sales CSVs, load, concatenate, and deduplicate.
+    """Discover all sales CSVs, load incrementally, and deduplicate.
 
+    Processes one CSV at a time to minimize peak memory usage.
     Deduplication key: (receipt_id, product, completed_at).
     When CSVs overlap, keep the row from the most recently exported file.
     """
+    import gc
+
     files = discover_csvs(inbox, keywords)
     if not files:
         return pd.DataFrame()
 
-    frames: list[pd.DataFrame] = []
+    # Incremental loading: process one file at a time, concat in pairs
+    # This avoids having all individual DataFrames in memory simultaneously
+    df = None
+    total_loaded = 0
+    file_count = 0
     for f in files:
         try:
-            frames.append(load_single_csv(f))
+            chunk = load_single_csv(f)
+            total_loaded += len(chunk)
+            file_count += 1
+            if df is None:
+                df = chunk
+            else:
+                df = pd.concat([df, chunk], ignore_index=True)
+                del chunk
+                gc.collect()
         except Exception as exc:
             print(f"  Warning: skipping {f.name}: {exc}")
 
-    if not frames:
+    if df is None or df.empty:
         return pd.DataFrame()
 
-    df = pd.concat(frames, ignore_index=True)
-
     # Dedup: sort by source end-date desc so most-recent file wins
-    pre_dedup = len(df)
     df = df.sort_values("_source_end_date", ascending=False)
     df = df.drop_duplicates(subset=["receipt_id", "product", "completed_at"], keep="first")
     post_dedup = len(df)
+    gc.collect()
 
-    print(f"  Loaded {pre_dedup:,} rows from {len(files)} files, {pre_dedup - post_dedup:,} duplicates removed → {post_dedup:,} unique rows")
+    print(f"  Loaded {total_loaded:,} rows from {file_count} files, {total_loaded - post_dedup:,} duplicates removed → {post_dedup:,} unique rows")
 
     # Classify transactions (vectorized for speed and memory)
     df["transaction_type"] = _classify_transactions_vectorized(df)

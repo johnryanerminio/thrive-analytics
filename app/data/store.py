@@ -43,11 +43,15 @@ class DataStore:
 
         if self.df.empty:
             print("  No sales CSVs found — starting with empty dataset")
-            self._regular = self.df
         else:
-            # Pre-filter REGULAR transactions — avoids re-filtering 4.8M rows on every request
-            self._regular = self.df[self.df["transaction_type"] == "REGULAR"]
-            print(f"  Pre-cached {len(self._regular):,} regular transactions")
+            # Convert high-cardinality string columns to categorical dtype to save ~60% RAM
+            cat_cols = ["brand_clean", "store_clean", "category_clean", "product",
+                        "transaction_type", "deal_type", "order_type", "year_month"]
+            for col in cat_cols:
+                if col in self.df.columns:
+                    self.df[col] = self.df[col].astype("category")
+            regular_count = int((self.df["transaction_type"] == "REGULAR").sum())
+            print(f"  {regular_count:,} regular transactions (of {len(self.df):,} total)")
 
         # BT performance — use most recent file
         bt_files = discover_bt_csvs(inbox)
@@ -122,7 +126,7 @@ class DataStore:
         Returns a filtered view (not a copy) for performance.
         Callers that need to mutate should call .copy() themselves.
         """
-        df = self._regular
+        df = self.df[self.df["transaction_type"] == "REGULAR"] if not self.df.empty else self.df
         if period:
             df = self._apply_period(df, period)
         return df

@@ -170,17 +170,47 @@ def load_all_csvs(
 
     print(f"  Loaded {pre_dedup:,} rows from {len(files)} files, {pre_dedup - post_dedup:,} duplicates removed → {post_dedup:,} unique rows")
 
-    # Classify transactions
-    df["transaction_type"] = df.apply(classify_transaction, axis=1)
-    df["deal_type"] = df.apply(classify_deal_type, axis=1)
+    # Classify transactions (vectorized for speed and memory)
+    df["transaction_type"] = _classify_transactions_vectorized(df)
+    df["deal_type"] = _classify_deal_types_vectorized(df)
 
     # Apply internal brand cost corrections (2024 + 2025)
     df = apply_internal_cost_corrections(df)
 
-    # Drop internal dedup columns
-    df = df.drop(columns=["_source_file", "_source_end_date"])
+    # Drop columns no longer needed to save memory
+    drop_cols = ["_source_file", "_source_end_date", "product_clean", "deals_upper"]
+    df = df.drop(columns=[c for c in drop_cols if c in df.columns])
 
     return df
+
+
+def _classify_transactions_vectorized(df: pd.DataFrame) -> pd.Series:
+    """Vectorized transaction classification — much faster than row-by-row apply."""
+    deals = df["deals_upper"].fillna("")
+    product = df.get("product_clean", pd.Series("", index=df.index)).fillna("")
+    actual_rev = df["actual_revenue"].fillna(0)
+
+    result = pd.Series("REGULAR", index=df.index)
+    result[deals.str.contains("REWARD|POINT|REDEMPTION", regex=True, na=False)] = "REWARD"
+    result[deals.str.contains("MARKOUT|MARK OUT|MARK-OUT", regex=True, na=False)] = "MARKOUT"
+    result[product.str.contains("TESTER", na=False) | deals.str.contains("TESTER", na=False)] = "TESTER"
+    result[(actual_rev <= 1.00) & ~product.str.contains("EXIT BAG", na=False) & (result == "REGULAR")] = "COMP"
+    return result
+
+
+def _classify_deal_types_vectorized(df: pd.DataFrame) -> pd.Series:
+    """Vectorized deal type classification."""
+    deals = df["deals_upper"].fillna("")
+    inline = df.get("inline_discounts", pd.Series("", index=df.index)).fillna("").astype(str).str.upper()
+    combined = deals + " " + inline
+
+    result = pd.Series("OTHER", index=df.index)
+    result[(deals == "") & (inline == "")] = "NO DEAL"
+    result[combined.str.contains("B1G|B2G|BOGO|2 FOR|3 FOR|4 FOR|5 FOR|2/\\$|3/\\$|4/\\$|5/\\$", regex=True, na=False)] = "BUNDLE"
+    result[combined.str.contains("%|PERCENT", regex=True, na=False) & (result == "OTHER")] = "PERCENT OFF"
+    result[combined.str.contains("SENIOR|VETERAN|MILITARY|MEDICAL|INDUSTRY|VIP|EMPLOYEE", regex=True, na=False) & (result == "OTHER")] = "CUSTOMER DISCOUNT"
+    result[combined.str.contains("FOR \\$|FOR\\$", regex=True, na=False) & (result == "OTHER")] = "PRICE DEAL"
+    return result
 
 
 # ---------------------------------------------------------------------------

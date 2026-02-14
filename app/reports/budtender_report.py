@@ -9,7 +9,7 @@ import pandas as pd
 
 from app.data.store import DataStore
 from app.data.schemas import PeriodFilter
-from app.analytics.common import sanitize_for_json
+from app.analytics.common import sanitize_for_json, fillna_numeric
 from app.analytics.budtenders import compute_sales_scores, budtender_summary
 from app.excel.writer import ExcelWriter
 from app.excel.styles import SECTION_FONT
@@ -38,7 +38,7 @@ def generate_json(store: DataStore, period: PeriodFilter | None = None) -> dict:
     summary = budtender_summary(bt_scored)
 
     # Clean NaN values before JSON serialization
-    bt_clean = bt_scored.fillna({"Role": "", "store": "", "store_clean": ""}).fillna(0)
+    bt_clean = fillna_numeric(bt_scored.fillna({"Role": "", "store": "", "store_clean": ""}))
 
     by_store = {}
     for s in sorted(bt_clean["store_clean"].dropna().unique()):

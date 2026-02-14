@@ -6,7 +6,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from app.analytics.common import safe_divide
+from app.analytics.common import safe_divide, fillna_numeric
 from app.data.normalize import get_customer_segment
 
 
@@ -94,14 +94,14 @@ def segment_summary(cust_df: pd.DataFrame, total_revenue: float) -> list[dict]:
     seg["pct_of_rev"] = (seg["total_revenue"] / total_revenue * 100).round(1) if total_revenue > 0 else 0
     seg = seg.sort_values("total_revenue", ascending=False)
 
-    return seg.fillna(0).to_dict("records")
+    return fillna_numeric(seg).to_dict("records")
 
 
 def top_customers(cust_df: pd.DataFrame, n: int = 50) -> list[dict]:
     """Top N customers by spend."""
     top = cust_df.nlargest(n, "total_spent").copy()
     top["rank"] = range(1, len(top) + 1)
-    return top.fillna(0).to_dict("records")
+    return fillna_numeric(top).to_dict("records")
 
 
 def brand_customer_count(brand_df: pd.DataFrame) -> int:

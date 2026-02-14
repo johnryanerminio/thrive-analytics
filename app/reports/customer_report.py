@@ -9,7 +9,7 @@ import pandas as pd
 
 from app.data.store import DataStore
 from app.data.schemas import PeriodFilter
-from app.analytics.common import sanitize_for_json
+from app.analytics.common import sanitize_for_json, fillna_numeric
 from app.analytics.customers import customer_metrics, customer_summary, segment_summary, top_customers
 from app.excel.writer import ExcelWriter
 from app.excel.styles import SECTION_FONT
@@ -47,7 +47,7 @@ def generate_json(store: DataStore, period: PeriodFilter | None = None) -> dict:
         store_cust = cust_df[cust_df["primary_store"] == s].nlargest(50, "total_spent").copy()
         if not store_cust.empty:
             store_cust["rank"] = range(1, len(store_cust) + 1)
-            by_store[s] = store_cust.fillna(0).to_dict("records")
+            by_store[s] = fillna_numeric(store_cust).to_dict("records")
 
     return sanitize_for_json({
         "date_range": date_range,

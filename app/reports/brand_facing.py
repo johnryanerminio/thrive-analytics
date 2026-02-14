@@ -14,7 +14,7 @@ import pandas as pd
 
 from app.data.store import DataStore
 from app.data.schemas import PeriodFilter
-from app.analytics.common import safe_divide, calc_margin, sanitize_for_json
+from app.analytics.common import safe_divide, calc_margin, sanitize_for_json, fillna_numeric
 from app.analytics.margin import brand_margin_summary
 from app.analytics.velocity import velocity_by_category, share_of_category, monthly_trend, share_of_category_trend
 from app.analytics.deals import expand_deals, promo_lift
@@ -215,8 +215,8 @@ def _product_mix(brand_df: pd.DataFrame) -> dict:
 
     total_stores = brand_df["store_clean"].nunique()
 
-    top = agg.head(20).fillna(0).to_dict("records")
-    bottom = agg.tail(10).fillna(0).to_dict("records") if len(agg) > 20 else []
+    top = fillna_numeric(agg.head(20)).to_dict("records")
+    bottom = fillna_numeric(agg.tail(10)).to_dict("records") if len(agg) > 20 else []
 
     # Expansion: products at some stores but not all
     partial = agg[(agg["stores"] < total_stores) & (agg["stores"] >= 2)].head(10)
@@ -255,7 +255,7 @@ def _pricing_consistency(brand_df: pd.DataFrame) -> list[dict]:
     pricing["range_pct"] = (pricing["price_range"] / pricing["avg_price"].replace(0, np.nan) * 100).round(1)
     pricing = pricing.sort_values("range_pct", ascending=False)
 
-    return pricing.head(30).fillna(0).to_dict("records")
+    return fillna_numeric(pricing.head(30)).to_dict("records")
 
 
 def _promotional_effectiveness(brand_df: pd.DataFrame) -> dict:
@@ -280,7 +280,7 @@ def _promotional_effectiveness(brand_df: pd.DataFrame) -> dict:
 
     return {
         "lift": lift,
-        "by_deal": deal_agg.head(20).fillna(0).to_dict("records"),
+        "by_deal": fillna_numeric(deal_agg.head(20)).to_dict("records"),
     }
 
 

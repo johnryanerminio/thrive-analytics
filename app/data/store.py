@@ -44,14 +44,30 @@ class DataStore:
         if self.df.empty:
             print("  No sales CSVs found — starting with empty dataset")
         else:
-            # Convert high-cardinality string columns to categorical dtype to save ~60% RAM
-            cat_cols = ["brand_clean", "store_clean", "category_clean", "product",
-                        "transaction_type", "deal_type", "order_type", "year_month"]
+            import gc
+            # Convert string columns to categorical dtype to save ~60% RAM
+            cat_cols = [
+                "brand_clean", "store_clean", "category_clean", "product",
+                "transaction_type", "deal_type", "order_type", "year_month",
+                # Raw string columns still needed by reports
+                "sold_by", "store", "brand", "category", "deals_used",
+                # High-cardinality but still fewer unique than rows → big savings
+                "customer_id", "customer_name", "receipt_id",
+            ]
             for col in cat_cols:
                 if col in self.df.columns:
                     self.df[col] = self.df[col].astype("category")
+
+            # Convert sale_date from Python date objects (~56 bytes each) to
+            # datetime64 (8 bytes each) — saves ~230 MB at 4.9M rows
+            if "sale_date" in self.df.columns:
+                self.df["sale_date"] = pd.to_datetime(self.df["sale_date"])
+
+            gc.collect()
             regular_count = int((self.df["transaction_type"] == "REGULAR").sum())
+            mem_mb = self.df.memory_usage(deep=True).sum() / 1024 / 1024
             print(f"  {regular_count:,} regular transactions (of {len(self.df):,} total)")
+            print(f"  DataFrame memory: {mem_mb:.0f} MB")
 
         # BT performance — use most recent file
         bt_files = discover_bt_csvs(inbox)

@@ -11,7 +11,7 @@ import pandas as pd
 
 from app.data.store import DataStore
 from app.data.schemas import PeriodFilter
-from app.analytics.common import safe_divide, sanitize_for_json
+from app.analytics.common import safe_divide, sanitize_for_json, fillna_numeric
 from app.analytics.margin import brand_margin_summary, brand_category_breakdown, discount_depth_distribution
 from app.analytics.deals import deal_summary
 from app.analytics.velocity import velocity_metrics, velocity_by_category, share_of_category, monthly_trend, share_of_category_trend
@@ -124,7 +124,7 @@ def generate_json(
         "date_range": date_range,
         "period_label": period.label if period else "All Time",
         "summary": summary,
-        "category_breakdown": cat_breakdown.fillna(0).to_dict("records"),
+        "category_breakdown": fillna_numeric(cat_breakdown).to_dict("records"),
         "trend": trend,
         "share_of_category": soc,
         "share_of_category_trend": soc_trend,
@@ -159,7 +159,7 @@ def _top_products(brand_df: pd.DataFrame, n: int) -> list[dict]:
         transactions=("receipt_id", "nunique"),
     ).reset_index()
     agg["margin"] = ((agg["revenue"] - agg["cost"]) / agg["revenue"].replace(0, float("nan")) * 100).round(1)
-    return agg.sort_values("revenue", ascending=False).head(n).fillna(0).to_dict("records")
+    return fillna_numeric(agg.sort_values("revenue", ascending=False).head(n)).to_dict("records")
 
 
 def _products_by_store(brand_df: pd.DataFrame, n: int) -> dict[str, list[dict]]:
@@ -174,7 +174,7 @@ def _products_by_store(brand_df: pd.DataFrame, n: int) -> dict[str, list[dict]]:
             transactions=("receipt_id", "nunique"),
         ).reset_index()
         agg["margin"] = ((agg["revenue"] - agg["cost"]) / agg["revenue"].replace(0, float("nan")) * 100).round(1)
-        result[s] = agg.sort_values("revenue", ascending=False).head(n).fillna(0).to_dict("records")
+        result[s] = fillna_numeric(agg.sort_values("revenue", ascending=False).head(n)).to_dict("records")
     return result
 
 
@@ -188,7 +188,7 @@ def _store_summary(brand_df: pd.DataFrame) -> list[dict]:
     ).reset_index()
     agg["margin"] = ((agg["revenue"] - agg["cost"]) / agg["revenue"].replace(0, float("nan")) * 100).round(1)
     agg["discount_rate"] = (agg["discounts"] / (agg["revenue"] + agg["discounts"]).replace(0, float("nan")) * 100).round(1)
-    return agg.sort_values("revenue", ascending=False).fillna(0).to_dict("records")
+    return fillna_numeric(agg.sort_values("revenue", ascending=False)).to_dict("records")
 
 
 # =====================================================================

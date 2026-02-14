@@ -6,7 +6,7 @@ from __future__ import annotations
 import pandas as pd
 import numpy as np
 
-from app.analytics.common import safe_divide, calc_margin
+from app.analytics.common import safe_divide, calc_margin, fillna_numeric
 
 
 def extract_deals(deals_str: str) -> list[str]:
@@ -87,7 +87,7 @@ def deal_summary(df: pd.DataFrame, top_n: int | None = None, _expanded: pd.DataF
     if top_n:
         agg = agg.head(top_n)
 
-    return agg.fillna(0).to_dict("records")
+    return fillna_numeric(agg).to_dict("records")
 
 
 def deal_type_summary(regular_df: pd.DataFrame) -> list[dict]:
@@ -106,7 +106,7 @@ def deal_type_summary(regular_df: pd.DataFrame) -> list[dict]:
     agg["margin"] = ((agg["actual_revenue"] - agg["cost"]) / agg["actual_revenue"].replace(0, np.nan) * 100).round(1)
     agg = agg.sort_values("actual_revenue", ascending=False)
 
-    return agg.fillna(0).to_dict("records")
+    return fillna_numeric(agg).to_dict("records")
 
 
 def deal_summary_by_store(df: pd.DataFrame, top_n: int = 10, _expanded: pd.DataFrame | None = None) -> dict[str, list[dict]]:
@@ -127,7 +127,7 @@ def deal_summary_by_store(df: pd.DataFrame, top_n: int = 10, _expanded: pd.DataF
         ).reset_index()
         agg["margin"] = ((agg["revenue"] - agg["cost"]) / agg["revenue"].replace(0, np.nan) * 100).round(1)
         agg = agg.sort_values("times_used", ascending=False).head(top_n)
-        result[store] = agg.fillna(0).to_dict("records")
+        result[store] = fillna_numeric(agg).to_dict("records")
 
     return result
 

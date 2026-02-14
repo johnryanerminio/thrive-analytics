@@ -81,6 +81,26 @@ def discover_customer_csvs(inbox: Path = INBOX_FOLDER) -> list[Path]:
 # Loading & dedup
 # ---------------------------------------------------------------------------
 
+def _downcast_numerics(df: pd.DataFrame) -> pd.DataFrame:
+    """Downcast float64 → float32 and int64 → smaller ints to halve numeric RAM."""
+    float32_cols = [
+        "pre_discount_revenue", "discounts", "actual_revenue", "net_profit",
+        "cost", "total_collected", "receipt_total", "cost_per_item", "taxes",
+    ]
+    for col in float32_cols:
+        if col in df.columns:
+            df[col] = df[col].astype("float32")
+
+    if "year" in df.columns:
+        df["year"] = df["year"].astype("int16")
+    if "month" in df.columns:
+        df["month"] = df["month"].astype("int8")
+    if "quantity" in df.columns:
+        df["quantity"] = pd.to_numeric(df["quantity"], errors="coerce").fillna(0).astype("int16")
+
+    return df
+
+
 def load_single_csv(filepath: Path) -> pd.DataFrame:
     """Load one CSV, normalise columns and categories, minimize memory."""
     # Only read columns we actually use
@@ -93,15 +113,13 @@ def load_single_csv(filepath: Path) -> pd.DataFrame:
     df = normalize_columns(df)
     df = normalize_categories(df)
 
+    # Downcast numeric types to save ~50% on numeric columns
+    df = _downcast_numerics(df)
+
     # Convert strings to category early to save memory during concat
     for col in ["brand_clean", "store_clean", "category_clean", "product"]:
         if col in df.columns:
             df[col] = df[col].astype("category")
-
-    # Tag with source file metadata for dedup ordering
-    _, end_date = _parse_file_dates(filepath)
-    df["_source_file"] = filepath.name
-    df["_source_end_date"] = end_date or "0000-00-00"
 
     return df
 
@@ -132,12 +150,14 @@ def apply_internal_cost_corrections(df: pd.DataFrame) -> pd.DataFrame:
                 continue
 
             # Apply per-unit cost: pre-roll categories get $4, others get default
-            new_cost_per_unit = pd.Series(prices["default"], index=df.index)
-            new_cost_per_unit = new_cost_per_unit.where(~is_preroll, prices["pre_roll"])
+            # Use float32 to match column dtype and avoid upcasting
+            new_cost_per_unit = pd.Series(prices["default"], index=df.index, dtype="float32")
+            new_cost_per_unit = new_cost_per_unit.where(~is_preroll, float(prices["pre_roll"]))
 
-            df.loc[year_mask, "cost"] = df.loc[year_mask, "quantity"] * new_cost_per_unit[year_mask]
-            df.loc[year_mask, "cost_per_item"] = new_cost_per_unit[year_mask]
-            df.loc[year_mask, "net_profit"] = df.loc[year_mask, "actual_revenue"] - df.loc[year_mask, "cost"]
+            new_cost = (df.loc[year_mask, "quantity"].astype("float32") * new_cost_per_unit[year_mask]).astype("float32")
+            df.loc[year_mask, "cost"] = new_cost
+            df.loc[year_mask, "cost_per_item"] = new_cost_per_unit[year_mask].astype("float32")
+            df.loc[year_mask, "net_profit"] = (df.loc[year_mask, "actual_revenue"] - new_cost).astype("float32")
 
             total_corrected += count
             print(f"  Cost correction: {brand_upper} {year_val} ({mode}) — {count:,} rows adjusted")
@@ -148,15 +168,21 @@ def apply_internal_cost_corrections(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+_DEDUP_COLS = ["receipt_id", "product", "completed_at"]
+
+
 def load_all_csvs(
     inbox: Path = INBOX_FOLDER,
     keywords: list[str] | None = None,
 ) -> pd.DataFrame:
     """Discover all sales CSVs, load incrementally, and deduplicate.
 
-    Processes one CSV at a time to minimize peak memory usage.
-    Deduplication key: (receipt_id, product, completed_at).
-    When CSVs overlap, keep the row from the most recently exported file.
+    Memory-optimised approach:
+    - Files are sorted by end-date descending (most-recent first)
+    - After each file concat, immediately dedup so the DataFrame never exceeds
+      the unique-row count + one file chunk
+    - No sort step needed — file processing order ensures keep='first' is correct
+    - Numeric columns are float32, year/month are int16/int8
     """
     import gc
 
@@ -164,35 +190,39 @@ def load_all_csvs(
     if not files:
         return pd.DataFrame()
 
-    # Incremental loading: process one file at a time, concat in pairs
-    # This avoids having all individual DataFrames in memory simultaneously
     df = None
     total_loaded = 0
     file_count = 0
     for f in files:
         try:
             chunk = load_single_csv(f)
-            total_loaded += len(chunk)
+            rows = len(chunk)
+            total_loaded += rows
             file_count += 1
+
             if df is None:
                 df = chunk
+                df = df.drop_duplicates(subset=_DEDUP_COLS, keep="first")
+                print(f"  [{file_count}/{len(files)}] {f.name}: {rows:,} rows → {len(df):,} unique")
             else:
                 df = pd.concat([df, chunk], ignore_index=True)
                 del chunk
+
+                # Dedup immediately: rows already in df (from more-recent files) are kept
+                pre = len(df)
+                df = df.drop_duplicates(subset=_DEDUP_COLS, keep="first")
+                dropped = pre - len(df)
                 gc.collect()
+                print(f"  [{file_count}/{len(files)}] {f.name}: +{rows:,}, dedup -{dropped:,} → {len(df):,} rows")
+
         except Exception as exc:
             print(f"  Warning: skipping {f.name}: {exc}")
 
     if df is None or df.empty:
         return pd.DataFrame()
 
-    # Dedup: sort by source end-date desc so most-recent file wins
-    df = df.sort_values("_source_end_date", ascending=False)
-    df = df.drop_duplicates(subset=["receipt_id", "product", "completed_at"], keep="first")
     post_dedup = len(df)
-    gc.collect()
-
-    print(f"  Loaded {total_loaded:,} rows from {file_count} files, {total_loaded - post_dedup:,} duplicates removed → {post_dedup:,} unique rows")
+    print(f"  Total: {total_loaded:,} raw rows from {file_count} files → {post_dedup:,} unique rows")
 
     # Classify transactions (vectorized for speed and memory)
     df["transaction_type"] = _classify_transactions_vectorized(df)
@@ -202,8 +232,13 @@ def load_all_csvs(
     df = apply_internal_cost_corrections(df)
 
     # Drop columns no longer needed to save memory
-    drop_cols = ["_source_file", "_source_end_date", "product_clean", "deals_upper"]
+    drop_cols = [
+        "product_clean", "deals_upper",        # used only during classification
+        "inline_discounts",                     # used only during deal classification
+        "taxes", "total_collected", "receipt_total",  # never used in analytics/reports
+    ]
     df = df.drop(columns=[c for c in drop_cols if c in df.columns])
+    gc.collect()
 
     return df
 

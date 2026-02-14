@@ -6,7 +6,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from app.analytics.common import safe_divide, calc_margin
+from app.analytics.common import safe_divide, calc_margin, fillna_numeric
 
 
 def company_margin_totals(regular_df: pd.DataFrame) -> dict:
@@ -95,7 +95,7 @@ def margin_by_group(regular_df: pd.DataFrame, group_col: str) -> pd.DataFrame:
     result["discounted_margin"] = ((result["discounted_sales"] - result["discounted_cost"]) / result["discounted_sales"].replace(0, np.nan) * 100).round(1)
     result["blended_margin"] = ((result["total_revenue"] - result["total_cost"]) / rev_safe * 100).round(1)
 
-    return result.fillna(0).reset_index().rename(columns={group_col: "name"}).sort_values("total_revenue", ascending=False)
+    return fillna_numeric(result).reset_index().rename(columns={group_col: "name"}).sort_values("total_revenue", ascending=False)
 
 
 def brand_margin_summary(brand_df: pd.DataFrame) -> dict:

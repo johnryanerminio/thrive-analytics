@@ -12,7 +12,7 @@ import pandas as pd
 from app.data.store import DataStore
 from app.data.schemas import PeriodFilter
 from app.data.normalize import extract_reward_name
-from app.analytics.common import safe_divide, sanitize_for_json
+from app.analytics.common import safe_divide, sanitize_for_json, fillna_numeric
 from app.excel.writer import ExcelWriter
 from app.excel.styles import SECTION_FONT
 
@@ -21,10 +21,10 @@ def generate_json(store: DataStore, period: PeriodFilter | None = None) -> dict:
     sales_df = store.get_sales(period)
     date_range = store.date_range(period)
 
-    rewards_df = sales_df[sales_df["deals_upper"].str.contains("REWARD|POINT|REDEMPTION", na=False)].copy()
+    rewards_df = sales_df[sales_df["transaction_type"] == "REWARD"].copy()
     rewards_df["reward_name"] = rewards_df["deals_used"].apply(extract_reward_name)
 
-    markouts_df = sales_df[sales_df["deals_upper"].str.contains("MARK", na=False)].copy()
+    markouts_df = sales_df[sales_df["transaction_type"] == "MARKOUT"].copy()
 
     days = max((sales_df["sale_date"].max() - sales_df["sale_date"].min()).days + 1, 1) if len(sales_df) > 0 else 1
 
@@ -63,7 +63,7 @@ def generate_json(store: DataStore, period: PeriodFilter | None = None) -> dict:
         rsum["net_cost"] = rsum["cost"] - rsum["collected"]
         rsum["pct"] = (rsum["net_cost"] / rewards_net * 100).round(1) if rewards_net > 0 else 0
         rsum = rsum.sort_values("net_cost", ascending=False)
-        all_rewards = rsum.fillna(0).to_dict("records")
+        all_rewards = fillna_numeric(rsum).to_dict("records")
 
     # Rewards by store
     rewards_by_store = {}
@@ -79,7 +79,7 @@ def generate_json(store: DataStore, period: PeriodFilter | None = None) -> dict:
             ).reset_index()
             ssum["net_cost"] = ssum["cost"] - ssum["collected"]
             ssum = ssum.sort_values("net_cost", ascending=False)
-            rewards_by_store[s] = ssum.fillna(0).to_dict("records")
+            rewards_by_store[s] = fillna_numeric(ssum).to_dict("records")
 
     # Markouts by employee
     markouts_by_employee = []
@@ -101,7 +101,7 @@ def generate_json(store: DataStore, period: PeriodFilter | None = None) -> dict:
         emp_sum = emp_sum.merge(emp_products, on="customer_name", how="left")
         emp_sum = emp_sum.sort_values("cost", ascending=False)
         emp_sum["rank"] = range(1, len(emp_sum) + 1)
-        markouts_by_employee = emp_sum.fillna(0).to_dict("records")
+        markouts_by_employee = fillna_numeric(emp_sum).to_dict("records")
 
     return sanitize_for_json({
         "date_range": date_range,

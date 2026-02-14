@@ -37,6 +37,19 @@ def pct_change(current: float, previous: float) -> float | None:
     return (current - previous) / abs(previous) * 100
 
 
+def fillna_numeric(df: pd.DataFrame, value=0) -> pd.DataFrame:
+    """Fill NaN with value for numeric columns only.
+
+    Safe to use when df contains categorical columns — avoids
+    TypeError from pandas when calling df.fillna(0) with mixed dtypes.
+    """
+    num_cols = df.select_dtypes(include="number").columns
+    if len(num_cols):
+        df = df.copy()
+        df[num_cols] = df[num_cols].fillna(value)
+    return df
+
+
 def safe_series_divide(
     numerator: pd.Series,
     denominator: pd.Series,

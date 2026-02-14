@@ -387,9 +387,11 @@
         <div class="absolute top-full left-0 right-0 mt-1 bg-white border border-muted rounded-lg shadow-lg max-h-64 overflow-y-auto z-50"
              x-show="showBrandDD && filteredBrands().length > 0" x-cloak>
           <template x-for="b in filteredBrands()" :key="b">
-            <div class="px-3 py-2 text-sm cursor-pointer hover:bg-cream"
-                 @click="selectedBrand = b; brandSearch = b; showBrandDD = false; loadBrandReport();"
-                 x-text="b"></div>
+            <div class="px-3 py-2 text-sm cursor-pointer hover:bg-cream flex items-center gap-1.5"
+                 @click="selectedBrand = b; brandSearch = b; showBrandDD = false; loadBrandReport();">
+              <span x-text="b"></span>
+              <img x-show="internalBrands.has(b.toUpperCase())" src="/logo.png" class="w-4 h-4 opacity-60" title="Thrive In-House Brand">
+            </div>
           </template>
         </div>
       </div>
@@ -700,8 +702,7 @@
     <!-- MONTH-OVER-MONTH PAGE                                       -->
     <!-- ========================================================== -->
     <section x-show="view === 'mom'" x-cloak>
-      <template x-if="momData">
-        <div>
+      <div x-show="momData" x-cloak>
           <!-- Period label -->
           <div class="mb-6 text-sm text-gray-400 font-medium" x-text="momData.period_label"></div>
 
@@ -734,6 +735,7 @@
                   <th>Month</th>
                   <th class="text-right">Revenue</th>
                   <th class="text-right">MoM %</th>
+                  <th class="text-right">YoY %</th>
                   <th class="text-right">Profit</th>
                   <th class="text-right">MoM %</th>
                   <th class="text-right">Margin</th>
@@ -750,6 +752,10 @@
                       <span :class="row.mom_revenue_pct > 0 ? 'text-success' : row.mom_revenue_pct < 0 ? 'text-destructive' : 'text-gray-400'"
                             x-text="row.mom_revenue_pct != null ? fmtPctSigned(row.mom_revenue_pct) : '-'"></span>
                     </td>
+                    <td class="text-right">
+                      <span :class="row.yoy_revenue_pct > 0 ? 'text-success' : row.yoy_revenue_pct < 0 ? 'text-destructive' : 'text-gray-400'"
+                            x-text="row.yoy_revenue_pct != null ? fmtPctSigned(row.yoy_revenue_pct) : '-'"></span>
+                    </td>
                     <td class="text-right" x-text="fmtCurrency(row.profit)"></td>
                     <td class="text-right">
                       <span :class="row.mom_profit_pct > 0 ? 'text-success' : row.mom_profit_pct < 0 ? 'text-destructive' : 'text-gray-400'"
@@ -764,6 +770,7 @@
                 <tr class="total-row" x-show="momData.totals">
                   <td class="font-bold">TOTAL</td>
                   <td class="text-right" x-text="fmtCurrency(momData.totals?.revenue)"></td>
+                  <td class="text-right">-</td>
                   <td class="text-right">-</td>
                   <td class="text-right" x-text="fmtCurrency(momData.totals?.profit)"></td>
                   <td class="text-right">-</td>
@@ -793,8 +800,47 @@
               </div>
             </div>
           </div>
-        </div>
-      </template>
+
+          <!-- Year-over-Year Comparison -->
+          <div x-show="momData.yoy_comparison && momData.yoy_comparison.length > 0" class="chart-container mb-6 overflow-x-auto">
+            <h3 class="text-sm font-semibold text-primary mb-4">
+              Year-over-Year Comparison:
+              <span x-text="momData.yoy_comparison?.[0]?.y1"></span> vs <span x-text="momData.yoy_comparison?.[0]?.y2"></span>
+            </h3>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th class="text-right" x-text="momData.yoy_comparison?.[0]?.y1 + ' Rev'"></th>
+                  <th class="text-right" x-text="momData.yoy_comparison?.[0]?.y2 + ' Rev'"></th>
+                  <th class="text-right">Rev Change</th>
+                  <th class="text-right" x-text="momData.yoy_comparison?.[0]?.y1 + ' Margin'"></th>
+                  <th class="text-right" x-text="momData.yoy_comparison?.[0]?.y2 + ' Margin'"></th>
+                  <th class="text-right">Margin Change</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(row, idx) in (momData.yoy_comparison || [])" :key="idx">
+                  <tr>
+                    <td class="font-medium" x-text="row.month_label"></td>
+                    <td class="text-right" x-text="row.y1_revenue != null ? fmtCurrency(row.y1_revenue) : '-'"></td>
+                    <td class="text-right" x-text="row.y2_revenue != null ? fmtCurrency(row.y2_revenue) : '-'"></td>
+                    <td class="text-right">
+                      <span :class="row.revenue_change_pct > 0 ? 'text-success' : row.revenue_change_pct < 0 ? 'text-destructive' : 'text-gray-400'"
+                            x-text="row.revenue_change_pct != null ? fmtPctSigned(row.revenue_change_pct) : '-'"></span>
+                    </td>
+                    <td class="text-right" x-text="row.y1_margin != null ? fmtPct(row.y1_margin) : '-'"></td>
+                    <td class="text-right" x-text="row.y2_margin != null ? fmtPct(row.y2_margin) : '-'"></td>
+                    <td class="text-right">
+                      <span :class="row.margin_change_pts > 0 ? 'text-success' : row.margin_change_pts < 0 ? 'text-destructive' : 'text-gray-400'"
+                            x-text="row.margin_change_pts != null ? (row.margin_change_pts > 0 ? '+' : '') + row.margin_change_pts + ' pts' : '-'"></span>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+      </div>
 
       <!-- Empty state -->
       <div x-show="!momData && !loading" x-cloak class="text-center py-20 text-gray-400">
@@ -1185,8 +1231,9 @@
         </div>
 
         <!-- Selected brand label -->
-        <div class="text-sm text-gray-400 font-medium" x-show="selectedBrand" x-cloak>
+        <div class="text-sm text-gray-400 font-medium flex items-center gap-2" x-show="selectedBrand" x-cloak>
           Viewing: <span class="text-primary font-semibold" x-text="selectedBrand"></span>
+          <img x-show="selectedBrand && internalBrands.has(selectedBrand.toUpperCase())" src="/logo.png" class="w-4 h-4 opacity-60" title="Thrive In-House Brand">
         </div>
 
         <div class="ml-auto flex items-center gap-2">
@@ -1220,8 +1267,8 @@
       <div x-show="brandSubTab === 'dispensary'" x-cloak>
         <template x-if="brandReport">
           <div>
-            <!-- 6 KPI Cards -->
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+            <!-- KPI Cards: Row 1 — Sales Performance -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Revenue</div>
                 <div class="text-2xl font-bold text-primary" x-text="fmtCurrency(brandReport.kpis?.revenue)"></div>
@@ -1256,12 +1303,71 @@
               </div>
             </div>
 
+            <!-- KPI Cards: Row 2 — Cost & Spend -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div class="kpi-card border-l-4 border-l-gold">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Total Cost (Our Spend)</div>
+                <div class="text-2xl font-bold text-primary" x-text="fmtCurrency(brandReport.kpis?.total_cost)"></div>
+              </div>
+              <div class="kpi-card border-l-4 border-l-gold">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Net Profit</div>
+                <div class="text-2xl font-bold"
+                     :class="(brandReport.kpis?.total_profit ?? 0) >= 0 ? 'text-success' : 'text-destructive'"
+                     x-text="fmtCurrency(brandReport.kpis?.total_profit)"></div>
+              </div>
+              <div class="kpi-card border-l-4 border-l-gold">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Cost Per Unit</div>
+                <div class="text-2xl font-bold text-primary" x-text="'$' + (brandReport.kpis?.cost_per_unit?.toFixed(2) || '0.00')"></div>
+              </div>
+              <div class="kpi-card border-l-4 border-l-gold">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Avg Monthly Spend</div>
+                <div class="text-2xl font-bold text-primary" x-text="fmtCurrency(brandReport.kpis?.avg_monthly_cost)"></div>
+                <div class="text-xs text-gray-400" x-text="(brandReport.kpis?.months_count || 0) + ' months'"></div>
+              </div>
+            </div>
+
             <!-- Monthly Revenue Trend Chart -->
             <div class="mb-6 chart-container">
               <h3 class="text-sm font-semibold text-primary mb-4">Monthly Revenue Trend</h3>
               <div class="relative" style="height:300px">
                 <canvas id="chart-brand-trend"></canvas>
               </div>
+            </div>
+
+            <!-- Monthly Cost & Revenue Table -->
+            <div class="chart-container mb-6 overflow-x-auto" x-show="brandReport.trend && brandReport.trend.length > 0" x-cloak>
+              <h3 class="text-sm font-semibold text-primary mb-4">Monthly Cost & Revenue Breakdown</h3>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th class="text-right">Revenue</th>
+                    <th class="text-right">Cost</th>
+                    <th class="text-right">Profit</th>
+                    <th class="text-right">Margin</th>
+                    <th class="text-right">Units</th>
+                    <th class="text-right">Txns</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="(t, idx) in (brandReport.trend || [])" :key="idx">
+                    <tr>
+                      <td class="font-medium" x-text="t.period"></td>
+                      <td class="text-right" x-text="fmtCurrency(t.revenue)"></td>
+                      <td class="text-right" x-text="fmtCurrency(t.cost)"></td>
+                      <td class="text-right" x-text="fmtCurrency(t.profit)"></td>
+                      <td class="text-right">
+                        <span :class="(t.margin ?? 0) >= 50 ? 'text-success font-semibold' :
+                                       (t.margin ?? 0) >= 40 ? 'font-semibold' : 'text-destructive font-semibold'"
+                              :style="(t.margin ?? 0) >= 40 && (t.margin ?? 0) < 50 ? 'color:#B8860B' : ''"
+                              x-text="fmtPct(t.margin)"></span>
+                      </td>
+                      <td class="text-right" x-text="fmtN(t.units)"></td>
+                      <td class="text-right" x-text="fmtN(t.transactions)"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
             </div>
 
             <!-- Revenue by Category + Share of Category side by side -->
@@ -1332,6 +1438,8 @@
                   <tr>
                     <th>Product</th>
                     <th class="text-right">Revenue</th>
+                    <th class="text-right">Cost</th>
+                    <th class="text-right">Cost/Unit</th>
                     <th class="text-right">Units</th>
                     <th class="text-right">Margin</th>
                     <th class="text-right">Profit</th>
@@ -1343,6 +1451,8 @@
                     <tr>
                       <td class="font-medium max-w-[250px] truncate" x-text="p.product"></td>
                       <td class="text-right" x-text="fmtCurrency(p.revenue)"></td>
+                      <td class="text-right" x-text="fmtCurrency(p.cost)"></td>
+                      <td class="text-right" x-text="'$' + (p.units ? (p.cost / p.units).toFixed(2) : '0.00')"></td>
                       <td class="text-right" x-text="fmtN(p.units)"></td>
                       <td class="text-right">
                         <span :class="(p.margin ?? 0) >= 50 ? 'text-success font-semibold' :
@@ -1400,6 +1510,7 @@
                   <tr>
                     <th>Store</th>
                     <th class="text-right">Revenue</th>
+                    <th class="text-right">Cost</th>
                     <th class="text-right">Units</th>
                     <th class="text-right">Margin</th>
                     <th class="text-right">Disc Rate</th>
@@ -1411,6 +1522,7 @@
                     <tr>
                       <td class="font-medium" x-text="s.store"></td>
                       <td class="text-right" x-text="fmtCurrency(s.revenue)"></td>
+                      <td class="text-right" x-text="fmtCurrency(s.cost)"></td>
                       <td class="text-right" x-text="fmtN(s.units)"></td>
                       <td class="text-right">
                         <span :class="(s.margin ?? 0) >= 50 ? 'text-success font-semibold' :
@@ -1499,7 +1611,6 @@
                     <th class="text-right">SKUs</th>
                     <th class="text-right">Brand Revenue</th>
                     <th class="text-right">Units</th>
-                    <th class="text-right">Store Total Rev</th>
                     <th class="text-right">Brand Share</th>
                   </tr>
                 </thead>
@@ -1513,7 +1624,6 @@
                       <td class="text-right" x-text="s.skus"></td>
                       <td class="text-right" x-text="fmtCurrency(s.brand_revenue)"></td>
                       <td class="text-right" x-text="fmtN(s.units)"></td>
-                      <td class="text-right" x-text="fmtCurrency(s.store_total_revenue)"></td>
                       <td class="text-right" x-text="fmtPct(s.brand_share)"></td>
                     </tr>
                   </template>
@@ -1573,7 +1683,6 @@
                     <th class="text-right">Revenue</th>
                     <th class="text-right">Units</th>
                     <th class="text-right">Margin</th>
-                    <th class="text-right">Profit</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1589,7 +1698,6 @@
                               :style="(p.margin ?? 0) >= 40 && (p.margin ?? 0) < 50 ? 'color:#B8860B' : ''"
                               x-text="fmtPct(p.margin)"></span>
                       </td>
-                      <td class="text-right" x-text="fmtCurrency(p.profit)"></td>
                     </tr>
                   </template>
                 </tbody>
@@ -1887,9 +1995,12 @@
                   <template x-for="(b, idx) in (masterData.top_brands || [])" :key="idx">
                     <tr>
                       <td class="font-medium">
-                        <a href="#" class="text-gold hover:underline"
-                           @click.prevent="selectedBrand = b.brand; brandSearch = b.brand; switchView('brands'); loadBrandReport();"
-                           x-text="b.brand"></a>
+                        <div class="flex items-center gap-1.5">
+                          <a href="#" class="text-gold hover:underline"
+                             @click.prevent="selectedBrand = b.brand; brandSearch = b.brand; switchView('brands'); loadBrandReport();"
+                             x-text="b.brand"></a>
+                          <img x-show="internalBrands.has((b.brand||'').toUpperCase())" src="/logo.png" class="w-4 h-4 opacity-60" title="Thrive In-House Brand">
+                        </div>
                       </td>
                       <td class="text-right" x-text="fmtCurrency(b.revenue)"></td>
                       <td class="text-right" x-text="fmtN(b.units)"></td>
@@ -2402,6 +2513,7 @@ function dashboard() {
     loading: false,
     error: null,
     brands: [],
+    internalBrands: new Set(),
     stores: [],
     health: null,
     periods: [],
@@ -2464,6 +2576,7 @@ function dashboard() {
       ]);
       if (h) this.health = h;
       this.brands = b.brands || b || [];
+      this.internalBrands = new Set((b.internal_brands || []).map(x => x.toUpperCase()));
       this.stores = s.stores || s || [];
       this.periods = p.periods || p || [];
       // Default to most recent month
@@ -2964,58 +3077,90 @@ function dashboard() {
 
     async uploadFiles(fileList) {
       this.uploadSuccess = null; this.uploadError = null; this.uploadProgress = 0;
-      const formData = new FormData();
-      let count = 0;
-      let totalSize = 0;
+      const csvFiles = [];
       for (const f of fileList) {
-        if (f.name.toLowerCase().endsWith('.csv')) { formData.append('files', f); count++; totalSize += f.size; }
+        if (f.name.toLowerCase().endsWith('.csv')) csvFiles.push(f);
       }
-      if (!count) { this.uploadError = 'No CSV files selected'; this.uploadProgress = null; return; }
+      if (!csvFiles.length) { this.uploadError = 'No CSV files selected'; this.uploadProgress = null; return; }
 
+      // Gzip-compress and upload files one at a time to fit within Railway proxy timeout
+      async function compressFile(file) {
+        const stream = file.stream().pipeThrough(new CompressionStream('gzip'));
+        const chunks = [];
+        const reader = stream.getReader();
+        while (true) {
+          const {done, value} = await reader.read();
+          if (done) break;
+          chunks.push(value);
+        }
+        return new Blob(chunks, {type: 'application/gzip'});
+      }
+
+      let uploaded = 0;
+      let failed = [];
       const self = this;
-      try {
-        const data = await new Promise((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.upload.addEventListener('progress', (e) => {
-            if (e.lengthComputable) self.uploadProgress = Math.round((e.loaded / e.total) * 100);
-          });
-          xhr.addEventListener('load', () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              try { resolve(JSON.parse(xhr.responseText)); } catch { resolve({count}); }
-            } else {
-              reject(new Error(xhr.responseText || xhr.statusText || 'Upload failed (HTTP ' + xhr.status + ')'));
-            }
-          });
-          xhr.addEventListener('error', () => reject(new Error('Network error — check file size and connection')));
-          xhr.addEventListener('timeout', () => reject(new Error('Upload timed out — file may be too large')));
-          xhr.timeout = 300000; // 5 minutes
-          xhr.open('POST', '/api/upload');
-          xhr.send(formData);
-        });
-
-        this.uploadSuccess = 'Uploaded ' + data.count + ' file(s) — reloading data...';
-        this.uploadProgress = 100;
-        this.loadDMFiles();
-
-        // Auto-reload data after upload
+      for (let i = 0; i < csvFiles.length; i++) {
+        const f = csvFiles[i];
+        const sizeMB = (f.size/1024/1024).toFixed(1);
+        this.uploadSuccess = `Compressing ${i+1} of ${csvFiles.length}: ${f.name} (${sizeMB}MB)...`;
         try {
-          const res = await fetch('/api/reload', {method:'POST'});
-          if (res.ok) {
-            const [h, b, s, p] = await Promise.all([
-              this.api('/api/health').catch(() => null),
-              this.api('/api/brands').catch(() => ({brands:[]})),
-              this.api('/api/stores').catch(() => ({stores:[]})),
-              this.api('/api/periods').catch(() => ({periods:[]})),
-            ]);
-            if (h) this.health = h;
-            this.brands = b.brands || b || [];
-            this.stores = s.stores || s || [];
-            this.periods = p.periods || p || [];
-            this.uploadSuccess = 'Uploaded ' + data.count + ' file(s) and reloaded — ' + this.fmtN(this.health?.rows) + ' rows';
-          }
-        } catch(e) { /* reload failed but upload succeeded */ }
-        this.uploadProgress = null;
-      } catch(e) { this.uploadError = 'Upload failed: ' + e.message; this.uploadProgress = null; }
+          // Gzip compress: ~50MB CSV → ~5MB gzipped
+          const compressed = await compressFile(f);
+          const compMB = (compressed.size/1024/1024).toFixed(1);
+          this.uploadSuccess = `Uploading ${i+1} of ${csvFiles.length}: ${f.name} (${compMB}MB compressed)...`;
+
+          await new Promise((resolve, reject) => {
+            const fd = new FormData();
+            fd.append('files', new File([compressed], f.name + '.gz', {type: 'application/gzip'}));
+            const xhr = new XMLHttpRequest();
+            xhr.upload.addEventListener('progress', (e) => {
+              if (e.lengthComputable) {
+                const filePct = Math.round((e.loaded / e.total) * 100);
+                self.uploadProgress = Math.round(((i + e.loaded/e.total) / csvFiles.length) * 100);
+                self.uploadSuccess = `Uploading ${i+1} of ${csvFiles.length}: ${f.name} (${filePct}%)`;
+              }
+            });
+            xhr.addEventListener('load', () => {
+              if (xhr.status >= 200 && xhr.status < 300) resolve();
+              else reject(new Error(f.name + ': HTTP ' + xhr.status));
+            });
+            xhr.addEventListener('error', () => reject(new Error(f.name + ': network error')));
+            xhr.addEventListener('timeout', () => reject(new Error(f.name + ': timed out')));
+            xhr.timeout = 300000;
+            xhr.open('POST', '/api/upload');
+            xhr.send(fd);
+          });
+          uploaded++;
+        } catch(e) { failed.push(e.message); }
+      }
+
+      this.uploadProgress = 100;
+      this.loadDMFiles();
+
+      const failMsg = failed.length ? ` (${failed.length} failed: ${failed.join(', ')})` : '';
+      this.uploadSuccess = `Uploaded ${uploaded} of ${csvFiles.length} file(s)${failMsg} — reloading data...`;
+
+      // Auto-reload data after upload
+      try {
+        const res = await fetch('/api/reload', {method:'POST'});
+        if (res.ok) {
+          // Wait a moment for background reload to start, then poll health
+          await new Promise(r => setTimeout(r, 2000));
+          const [h, b, s, p] = await Promise.all([
+            this.api('/api/health').catch(() => null),
+            this.api('/api/brands').catch(() => ({brands:[]})),
+            this.api('/api/stores').catch(() => ({stores:[]})),
+            this.api('/api/periods').catch(() => ({periods:[]})),
+          ]);
+          if (h) this.health = h;
+          this.brands = b.brands || b || [];
+          this.internalBrands = new Set((b.internal_brands || []).map(x => x.toUpperCase()));
+          this.stores = s.stores || s || [];
+          this.periods = p.periods || p || [];
+          this.uploadSuccess = `Uploaded ${uploaded} file(s)${failMsg} — reloaded: ${this.fmtN(this.health?.rows)} rows`;
+        }
+      } catch(e) { /* reload failed but upload succeeded */ }
+      this.uploadProgress = null;
     },
 
     async deleteFile(path) {
@@ -3039,6 +3184,7 @@ function dashboard() {
         ]);
         if (h) this.health = h;
         this.brands = b.brands || b || [];
+        this.internalBrands = new Set((b.internal_brands || []).map(x => x.toUpperCase()));
         this.stores = s.stores || s || [];
         this.periods = p.periods || p || [];
         this.uploadSuccess = 'Data reloaded: ' + this.fmtN(this.health?.rows) + ' rows, ' + this.stores.length + ' stores';

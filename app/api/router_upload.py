@@ -4,11 +4,12 @@ Reload lives in router_meta.py.
 """
 from __future__ import annotations
 
+import gzip
 import re
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Header
 
 from app.config import INBOX_FOLDER
 
@@ -27,16 +28,27 @@ async def upload_csvs(files: list[UploadFile] = File(...)):
     """Upload one or more CSV files to the inbox."""
     saved = []
     for f in files:
-        if not f.filename or not f.filename.lower().endswith(".csv"):
+        if not f.filename:
+            raise HTTPException(400, "Missing filename")
+
+        # Strip .gz suffix if present (browser gzip-compressed upload)
+        filename = f.filename
+        is_gzipped = filename.lower().endswith(".csv.gz")
+        if is_gzipped:
+            filename = filename[:-3]  # Remove .gz → left with .csv
+
+        if not filename.lower().endswith(".csv"):
             raise HTTPException(400, f"Only .csv files are accepted (got '{f.filename}')")
 
-        dest_dir = _resolve_year_folder(f.filename)
+        dest_dir = _resolve_year_folder(filename)
         dest_dir.mkdir(parents=True, exist_ok=True)
-        dest = dest_dir / f.filename
+        dest = dest_dir / filename
 
         content = await f.read()
+        if is_gzipped:
+            content = gzip.decompress(content)
         dest.write_bytes(content)
-        saved.append({"name": f.filename, "path": str(dest.relative_to(INBOX_FOLDER)), "size": len(content)})
+        saved.append({"name": filename, "path": str(dest.relative_to(INBOX_FOLDER)), "size": len(content)})
 
     return {"status": "uploaded", "count": len(saved), "files": saved}
 

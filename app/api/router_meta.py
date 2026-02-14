@@ -31,10 +31,12 @@ def list_stores(store: DataStore = Depends(get_store_or_empty)):
     return StoresResponse(stores=store.stores() if not store.df.empty else [])
 
 
-@router.get("/brands", response_model=BrandsResponse)
+@router.get("/brands")
 def list_brands(store: DataStore = Depends(get_store_or_empty)):
+    from app.config import INTERNAL_BRANDS
     brands = store.brands() if not store.df.empty else []
-    return BrandsResponse(brands=brands, count=len(brands))
+    internal = [b for b in brands if b.upper() in INTERNAL_BRANDS]
+    return {"brands": brands, "count": len(brands), "internal_brands": internal}
 
 
 @router.get("/categories", response_model=CategoriesResponse)
@@ -48,11 +50,19 @@ def list_periods(store: DataStore = Depends(get_store_or_empty)):
 
 
 @router.post("/reload")
-def reload_data(store: DataStore = Depends(get_store_or_empty)):
-    """Re-scan inbox and reload all data."""
-    store.load()
+async def reload_data(store: DataStore = Depends(get_store_or_empty), background_tasks: BackgroundTasks = None):
+    """Re-scan inbox and reload all data.
+
+    Returns immediately, reload happens in background.
+    """
+    import threading
+
+    def _do_reload():
+        store.load()
+        print(f"  Reload complete — {store.row_count():,} rows, {store.regular_count():,} regular")
+
+    threading.Thread(target=_do_reload, daemon=True).start()
     return {
-        "status": "reloaded",
-        "rows": store.row_count(),
-        "regular_rows": store.regular_count(),
+        "status": "reloading",
+        "message": "Data reload started in background. Check /api/health for updated row counts.",
     }

@@ -107,8 +107,8 @@ CUSTOMER_SEGMENTS = [
 #   - 2026+: costs are accurate, no correction needed
 # ---------------------------------------------------------------------------
 INTERNAL_BRAND_COSTS = {
-    "HAUS":         {"default": 10.00, "pre_roll": 4.00},
-    "H&G":          {"default": 10.00, "pre_roll": 4.00},
+    "HAUS":         {"default": 6.62, "pre_roll": 4.00},
+    "HUSTLE & GROW": {"default": 6.62, "pre_roll": 4.00},
     "PISTOLA":      {"default": 8.63,  "pre_roll": 4.00},
     "GREEN & GOLD": {"default": 8.63,  "pre_roll": 4.00},
 }
@@ -116,11 +116,20 @@ INTERNAL_BRAND_COSTS = {
 # "conditional" = only replace when cost_per_item < $1
 # "unconditional" = replace ALL costs regardless of current value
 COST_CORRECTION_YEARS = {
-    2024: "conditional",
+    2024: "unconditional",
     2025: "unconditional",
 }
 
 PRE_ROLL_CATEGORIES = {"PRE ROLL", "PRE ROLL PACK"}
+
+# ---------------------------------------------------------------------------
+# In-house brand names (for visual indicators in the UI)
+# Superset of INTERNAL_BRAND_COSTS — includes brands without cost corrections
+# ---------------------------------------------------------------------------
+INTERNAL_BRANDS = {
+    "HAUS", "HUSTLE & GROW", "PISTOLA", "GREEN & GOLD",
+    "RETREAT", "FADE", "G&G EXTRACTS",
+}
 
 # ---------------------------------------------------------------------------
 # Share link defaults

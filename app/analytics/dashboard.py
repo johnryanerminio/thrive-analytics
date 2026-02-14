@@ -345,7 +345,10 @@ def month_over_month(store: DataStore, period: PeriodFilter | None) -> dict:
 
     monthly = _monthly_groups(regular)
 
-    # Compute MoM changes
+    # Build lookup by (year, month_num) for YoY comparison
+    by_ym = {(m["year"], m["month_num"]): m for m in monthly}
+
+    # Compute MoM and YoY changes
     for i, m in enumerate(monthly):
         if i == 0:
             m["mom_revenue_pct"] = None
@@ -358,6 +361,17 @@ def month_over_month(store: DataStore, period: PeriodFilter | None) -> dict:
             m["mom_profit_pct"] = pct_change(m["profit"], prev["profit"])
             m["mom_margin_pts"] = round(m["margin"] - prev["margin"], 1)
             m["mom_units_pct"] = pct_change(m["units"], prev["units"])
+
+        # YoY: compare to same month in previous year
+        prev_year = by_ym.get((m["year"] - 1, m["month_num"]))
+        if prev_year:
+            m["yoy_revenue_pct"] = pct_change(m["revenue"], prev_year["revenue"])
+            m["yoy_profit_pct"] = pct_change(m["profit"], prev_year["profit"])
+            m["yoy_margin_pts"] = round(m["margin"] - prev_year["margin"], 1)
+        else:
+            m["yoy_revenue_pct"] = None
+            m["yoy_profit_pct"] = None
+            m["yoy_margin_pts"] = None
 
     # Totals
     total_rev = sum(m["revenue"] for m in monthly)
@@ -378,12 +392,42 @@ def month_over_month(store: DataStore, period: PeriodFilter | None) -> dict:
     best = max(monthly, key=lambda m: m["revenue"]) if monthly else None
     worst = min(monthly, key=lambda m: m["revenue"]) if monthly else None
 
+    # Side-by-side YoY comparison: use the two most recent full years
+    years = sorted(set(m["year"] for m in monthly))
+    yoy_comparison = []
+    if len(years) >= 2:
+        y1, y2 = years[-2], years[-1]
+        for mn in range(1, 13):
+            d1 = by_ym.get((y1, mn))
+            d2 = by_ym.get((y2, mn))
+            if not d1 and not d2:
+                continue
+            row = {
+                "month_label": _MONTH_NAMES[mn],
+                "month_num": mn,
+                "y1": y1,
+                "y2": y2,
+                "y1_revenue": d1["revenue"] if d1 else None,
+                "y1_profit": d1["profit"] if d1 else None,
+                "y1_margin": round(d1["margin"], 1) if d1 else None,
+                "y1_units": d1["units"] if d1 else None,
+                "y2_revenue": d2["revenue"] if d2 else None,
+                "y2_profit": d2["profit"] if d2 else None,
+                "y2_margin": round(d2["margin"], 1) if d2 else None,
+                "y2_units": d2["units"] if d2 else None,
+                "revenue_change_pct": pct_change(d2["revenue"], d1["revenue"]) if d1 and d2 else None,
+                "profit_change_pct": pct_change(d2["profit"], d1["profit"]) if d1 and d2 else None,
+                "margin_change_pts": round(d2["margin"] - d1["margin"], 1) if d1 and d2 else None,
+            }
+            yoy_comparison.append(row)
+
     return sanitize_for_json({
         "period_label": label,
         "months": monthly,
         "totals": totals,
         "best_month": {"label": best["label"], "revenue": best["revenue"]} if best else None,
         "worst_month": {"label": worst["label"], "revenue": worst["revenue"]} if worst else None,
+        "yoy_comparison": yoy_comparison,
     })
 
 

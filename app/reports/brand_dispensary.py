@@ -46,6 +46,10 @@ def generate_json(
     summary["unique_customers"] = brand_customer_count(brand_df)
     summary["brand"] = brand_name
     summary["date_range"] = date_range
+    months_count = brand_df["year_month"].nunique() if "year_month" in brand_df.columns else 1
+    summary["months_count"] = months_count
+    summary["avg_monthly_cost"] = round(summary["total_cost"] / max(months_count, 1), 2)
+    summary["cost_per_unit"] = round(safe_divide(summary["total_cost"], summary["total_units"]), 2)
 
     # Category breakdown
     cat_breakdown = brand_category_breakdown(brand_df, cat_margin_lookup, cat_rankings, brand_name)

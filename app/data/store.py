@@ -105,7 +105,7 @@ class DataStore:
             elif end is not None:
                 df = df[df["sale_date"] <= end]
 
-        if period.store:
+        if period.store and "store_clean" in df.columns:
             df = df[df["store_clean"] == period.store]
         return df
 

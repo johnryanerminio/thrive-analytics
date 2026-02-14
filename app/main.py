@@ -7,8 +7,9 @@ from contextlib import asynccontextmanager
 
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.data.store import DataStore
@@ -74,10 +75,20 @@ def create_app() -> FastAPI:
     app.include_router(upload_router)
     app.include_router(dashboard_router)
 
-    # Serve dashboard at /
+    # Serve dashboard with no-cache headers so browsers always get fresh JS
     static_dir = Path(__file__).parent / "static"
     if static_dir.is_dir():
-        app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
+        index_html = static_dir / "index.html"
+
+        @app.get("/", response_class=HTMLResponse)
+        async def serve_index():
+            return HTMLResponse(
+                content=index_html.read_text(),
+                headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"},
+            )
+
+        # Serve other static files (logo.png etc.) at root
+        app.mount("/", StaticFiles(directory=str(static_dir)), name="static")
 
     return app
 

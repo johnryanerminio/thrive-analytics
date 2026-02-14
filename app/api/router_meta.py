@@ -49,17 +49,33 @@ def list_periods(store: DataStore = Depends(get_store_or_empty)):
     return PeriodsResponse(periods=store.periods_available() if not store.df.empty else [])
 
 
+_reload_in_progress = False
+
 @router.post("/reload")
-async def reload_data(store: DataStore = Depends(get_store_or_empty), background_tasks: BackgroundTasks = None):
+async def reload_data(store: DataStore = Depends(get_store_or_empty)):
     """Re-scan inbox and reload all data.
 
     Returns immediately, reload happens in background.
+    Skips if a reload is already in progress.
     """
+    import gc
     import threading
 
+    global _reload_in_progress
+    if _reload_in_progress:
+        return {"status": "already_reloading", "message": "A reload is already in progress. Please wait."}
+
     def _do_reload():
-        store.load()
-        print(f"  Reload complete — {store.row_count():,} rows, {store.regular_count():,} regular")
+        global _reload_in_progress
+        _reload_in_progress = True
+        try:
+            # Free old data before loading new to reduce peak memory
+            store.df = store.df.iloc[0:0]
+            gc.collect()
+            store.load()
+            print(f"  Reload complete — {store.row_count():,} rows, {store.regular_count():,} regular")
+        finally:
+            _reload_in_progress = False
 
     threading.Thread(target=_do_reload, daemon=True).start()
     return {

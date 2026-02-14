@@ -1,19 +1,24 @@
 """
 Upload endpoints: upload, list, delete CSV files.
+Supports chunked uploads for large files on Railway (proxy timeout ~60s).
 Reload lives in router_meta.py.
 """
 from __future__ import annotations
 
 import gzip
 import re
+import shutil
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Header
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 
-from app.config import INBOX_FOLDER
+from app.config import INBOX_FOLDER, UPLOADS_FOLDER
 
 router = APIRouter(prefix="/api", tags=["upload"])
+
+# Temp directory for chunked uploads
+CHUNKS_DIR = UPLOADS_FOLDER / "_chunks"
 
 
 def _resolve_year_folder(filename: str) -> Path:
@@ -51,6 +56,51 @@ async def upload_csvs(files: list[UploadFile] = File(...)):
         saved.append({"name": filename, "path": str(dest.relative_to(INBOX_FOLDER)), "size": len(content)})
 
     return {"status": "uploaded", "count": len(saved), "files": saved}
+
+
+@router.post("/upload/chunk")
+async def upload_chunk(
+    file: UploadFile = File(...),
+    filename: str = Form(...),
+    chunk_index: int = Form(...),
+    total_chunks: int = Form(...),
+):
+    """Upload a single chunk of a large file. Assembles when all chunks received."""
+    # Create chunk directory for this file
+    safe_name = re.sub(r'[^\w\-. ()]', '_', filename)
+    chunk_dir = CHUNKS_DIR / safe_name
+    chunk_dir.mkdir(parents=True, exist_ok=True)
+
+    # Save this chunk
+    chunk_path = chunk_dir / f"chunk_{chunk_index:04d}"
+    content = await file.read()
+    chunk_path.write_bytes(content)
+
+    # Check if all chunks are present
+    existing = list(chunk_dir.glob("chunk_*"))
+    if len(existing) >= total_chunks:
+        # Assemble the file
+        dest_dir = _resolve_year_folder(filename)
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest = dest_dir / filename
+
+        with open(dest, "wb") as out:
+            for i in range(total_chunks):
+                cp = chunk_dir / f"chunk_{i:04d}"
+                out.write(cp.read_bytes())
+
+        # Clean up chunks
+        shutil.rmtree(chunk_dir, ignore_errors=True)
+
+        size = dest.stat().st_size
+        return {
+            "status": "complete",
+            "name": filename,
+            "path": str(dest.relative_to(INBOX_FOLDER)),
+            "size": size,
+        }
+
+    return {"status": "chunked", "received": len(existing), "total": total_chunks}
 
 
 @router.get("/upload/files")

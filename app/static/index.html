@@ -3083,55 +3083,38 @@ function dashboard() {
       }
       if (!csvFiles.length) { this.uploadError = 'No CSV files selected'; this.uploadProgress = null; return; }
 
-      // Gzip-compress and upload files one at a time to fit within Railway proxy timeout
-      async function compressFile(file) {
-        const stream = file.stream().pipeThrough(new CompressionStream('gzip'));
-        const chunks = [];
-        const reader = stream.getReader();
-        while (true) {
-          const {done, value} = await reader.read();
-          if (done) break;
-          chunks.push(value);
-        }
-        return new Blob(chunks, {type: 'application/gzip'});
+      // Chunked upload: split each file into 2MB pieces to avoid Railway proxy timeout
+      const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB per chunk
+
+      async function uploadChunk(blob, filename, chunkIndex, totalChunks) {
+        const fd = new FormData();
+        fd.append('file', blob, `chunk_${chunkIndex}`);
+        fd.append('filename', filename);
+        fd.append('chunk_index', chunkIndex.toString());
+        fd.append('total_chunks', totalChunks.toString());
+        const res = await fetch('/api/upload/chunk', { method: 'POST', body: fd });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
       }
 
       let uploaded = 0;
       let failed = [];
-      const self = this;
       for (let i = 0; i < csvFiles.length; i++) {
         const f = csvFiles[i];
-        const sizeMB = (f.size/1024/1024).toFixed(1);
-        this.uploadSuccess = `Compressing ${i+1} of ${csvFiles.length}: ${f.name} (${sizeMB}MB)...`;
+        const sizeMB = (f.size / 1024 / 1024).toFixed(1);
+        const totalChunks = Math.ceil(f.size / CHUNK_SIZE);
         try {
-          // Gzip compress: ~50MB CSV → ~5MB gzipped
-          const compressed = await compressFile(f);
-          const compMB = (compressed.size/1024/1024).toFixed(1);
-          this.uploadSuccess = `Uploading ${i+1} of ${csvFiles.length}: ${f.name} (${compMB}MB compressed)...`;
-
-          await new Promise((resolve, reject) => {
-            const fd = new FormData();
-            fd.append('files', new File([compressed], f.name + '.gz', {type: 'application/gzip'}));
-            const xhr = new XMLHttpRequest();
-            xhr.upload.addEventListener('progress', (e) => {
-              if (e.lengthComputable) {
-                const filePct = Math.round((e.loaded / e.total) * 100);
-                self.uploadProgress = Math.round(((i + e.loaded/e.total) / csvFiles.length) * 100);
-                self.uploadSuccess = `Uploading ${i+1} of ${csvFiles.length}: ${f.name} (${filePct}%)`;
-              }
-            });
-            xhr.addEventListener('load', () => {
-              if (xhr.status >= 200 && xhr.status < 300) resolve();
-              else reject(new Error(f.name + ': HTTP ' + xhr.status));
-            });
-            xhr.addEventListener('error', () => reject(new Error(f.name + ': network error')));
-            xhr.addEventListener('timeout', () => reject(new Error(f.name + ': timed out')));
-            xhr.timeout = 300000;
-            xhr.open('POST', '/api/upload');
-            xhr.send(fd);
-          });
+          for (let c = 0; c < totalChunks; c++) {
+            const start = c * CHUNK_SIZE;
+            const end = Math.min(start + CHUNK_SIZE, f.size);
+            const chunk = f.slice(start, end);
+            this.uploadProgress = Math.round(((i + c / totalChunks) / csvFiles.length) * 100);
+            this.uploadSuccess = `Uploading ${f.name} (${sizeMB}MB) — chunk ${c + 1}/${totalChunks}`;
+            await uploadChunk(chunk, f.name, c, totalChunks);
+          }
           uploaded++;
-        } catch(e) { failed.push(e.message); }
+          this.uploadSuccess = `Uploaded ${uploaded} of ${csvFiles.length}: ${f.name}`;
+        } catch (e) { failed.push(f.name + ': ' + e.message); }
       }
 
       this.uploadProgress = null;

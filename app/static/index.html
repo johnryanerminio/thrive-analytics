@@ -1798,7 +1798,7 @@
                   <tbody>
                     <template x-for="(d, idx) in (facingReport.promotional_effectiveness?.by_deal || [])" :key="idx">
                       <tr>
-                        <td class="font-medium" x-text="d.deal"></td>
+                        <td class="font-medium max-w-[250px] truncate" x-text="d.deal_name || d.deal"></td>
                         <td class="text-right" x-text="fmtN(d.uses)"></td>
                         <td class="text-right" x-text="fmtCurrency(d.revenue)"></td>
                         <td class="text-right text-destructive" x-text="fmtCurrency(d.discounts)"></td>

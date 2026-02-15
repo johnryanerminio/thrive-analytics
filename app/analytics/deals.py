@@ -24,12 +24,15 @@ def expand_deals(df: pd.DataFrame) -> pd.DataFrame:
     if "deals_used" not in df.columns:
         return pd.DataFrame()
 
-    has_deals = df[df["deals_used"].notna() & (df["deals_used"] != "") & (df["deals_used"].str.strip() != "")]
+    # Convert from categorical to string to ensure .str.split works correctly
+    deals_col = df["deals_used"].astype(str) if hasattr(df["deals_used"], "cat") else df["deals_used"]
+    has_deals = df[deals_col.notna() & (deals_col != "") & (deals_col != "nan") & (deals_col.str.strip() != "")]
     if has_deals.empty:
         return pd.DataFrame()
 
     # Split deals into lists and compute counts
-    split = has_deals["deals_used"].str.split(",").apply(lambda x: [d.strip() for d in x if d.strip()])
+    deals_str = has_deals["deals_used"].astype(str)
+    split = deals_str.str.split(",").apply(lambda x: [d.strip() for d in x if d.strip()])
     deal_counts = split.apply(len)
     nonzero = deal_counts > 0
     has_deals = has_deals[nonzero]

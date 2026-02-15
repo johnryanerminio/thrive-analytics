@@ -109,7 +109,7 @@ class DataStore:
             months = [m_start, m_start + 1, m_start + 2]
             df = df[(df["year"] == period.year) & (df["month"].isin(months))]
         elif period.period_type == PeriodType.RANGE and period.start_year and period.start_month and period.end_year and period.end_month:
-            df_ym = df["year"] * 100 + df["month"]
+            df_ym = df["year"].astype("int32") * 100 + df["month"].astype("int32")
             start_ym = period.start_year * 100 + period.start_month
             end_ym = period.end_year * 100 + period.end_month
             df = df[(df_ym >= start_ym) & (df_ym <= end_ym)]

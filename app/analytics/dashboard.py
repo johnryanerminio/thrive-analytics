@@ -437,6 +437,7 @@ def month_over_month(store: DataStore, period: PeriodFilter | None) -> dict:
 
 def store_performance(store: DataStore, period: PeriodFilter | None) -> dict:
     """Store-level performance rankings."""
+    from app.config import EXCLUDED_STORES
     regular = store.get_regular(period)
     label = period.label if period else "All Time"
 
@@ -454,6 +455,10 @@ def store_performance(store: DataStore, period: PeriodFilter | None) -> dict:
         customers=("customer_id", "nunique"),
         discounts=("discounts", "sum"),
     ).reset_index().sort_values("revenue", ascending=False)
+
+    # Exclude negligible/test stores
+    if EXCLUDED_STORES:
+        store_agg = store_agg[~store_agg["store_clean"].isin(EXCLUDED_STORES)]
 
     avg_margin = safe_divide(float(regular["net_profit"].sum()), total_rev) * 100
 

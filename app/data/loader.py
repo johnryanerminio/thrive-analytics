@@ -116,11 +116,6 @@ def load_single_csv(filepath: Path) -> pd.DataFrame:
     # Downcast numeric types to save ~50% on numeric columns
     df = _downcast_numerics(df)
 
-    # Convert strings to category early to save memory during concat
-    for col in ["brand_clean", "store_clean", "category_clean", "product"]:
-        if col in df.columns:
-            df[col] = df[col].astype("category")
-
     return df
 
 
@@ -201,8 +196,11 @@ def load_all_csvs(
             file_count += 1
 
             if df is None:
-                df = chunk
-                df = df.drop_duplicates(subset=_DEDUP_COLS, keep="first")
+                df = chunk.drop_duplicates(subset=_DEDUP_COLS, keep="first")
+                del chunk
+                # Convert object columns to category to keep memory low
+                for col in df.select_dtypes(include=["object"]).columns:
+                    df[col] = df[col].astype("category")
                 print(f"  [{file_count}/{len(files)}] {f.name}: {rows:,} rows → {len(df):,} unique")
             else:
                 df = pd.concat([df, chunk], ignore_index=True)
@@ -212,6 +210,11 @@ def load_all_csvs(
                 pre = len(df)
                 df = df.drop_duplicates(subset=_DEDUP_COLS, keep="first")
                 dropped = pre - len(df)
+
+                # Convert object columns to category to keep memory low
+                for col in df.select_dtypes(include=["object"]).columns:
+                    df[col] = df[col].astype("category")
+
                 gc.collect()
                 print(f"  [{file_count}/{len(files)}] {f.name}: +{rows:,}, dedup -{dropped:,} → {len(df):,} rows")
 
@@ -223,6 +226,14 @@ def load_all_csvs(
 
     post_dedup = len(df)
     print(f"  Total: {total_loaded:,} raw rows from {file_count} files → {post_dedup:,} unique rows")
+
+    # Drop completed_at — only needed for dedup, saves ~37 MB
+    df = df.drop(columns=["completed_at"], errors="ignore")
+
+    # Classification needs string ops on these columns; convert from category back to object
+    for col in ["deals_upper", "product_clean", "inline_discounts"]:
+        if col in df.columns and df[col].dtype.name == "category":
+            df[col] = df[col].astype(object)
 
     # Classify transactions (vectorized for speed and memory)
     df["transaction_type"] = _classify_transactions_vectorized(df)
@@ -236,6 +247,7 @@ def load_all_csvs(
         "product_clean", "deals_upper",        # used only during classification
         "inline_discounts",                     # used only during deal classification
         "taxes", "total_collected", "receipt_total",  # never used in analytics/reports
+        "brand", "category",                    # raw columns; analytics uses brand_clean/category_clean
     ]
     df = df.drop(columns=[c for c in drop_cols if c in df.columns])
     gc.collect()

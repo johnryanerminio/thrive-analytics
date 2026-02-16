@@ -18,15 +18,13 @@
       theme: {
         extend: {
           colors: {
-            primary:     { DEFAULT: '#06B6D4', dark: '#0891B2' },
-            gold:        { DEFAULT: '#A855F7', light: 'rgba(168,85,247,0.2)' },
-            lime:        { DEFAULT: '#A855F7', light: 'rgba(168,85,247,0.2)' },
-            success:     { DEFAULT: '#34D399' },
-            destructive: { DEFAULT: '#F87171' },
-            cream:       { DEFAULT: '#110F1A' },
-            card:        { DEFAULT: 'rgba(255,255,255,0.04)' },
-            muted:       { DEFAULT: 'rgba(255,255,255,0.08)' },
-            warning:     { DEFAULT: '#FBBF24' },
+            primary:     { DEFAULT: '#2D3E3F', dark: '#243131' },
+            gold:        { DEFAULT: '#C9A962', light: 'rgba(201,169,98,0.2)' },
+            success:     { DEFAULT: '#5C7A5C' },
+            destructive: { DEFAULT: '#C67B5C' },
+            cream:       { DEFAULT: '#F5F3ED' },
+            card:        { DEFAULT: '#FFFFFF' },
+            muted:       { DEFAULT: '#E8E5DE' },
           },
           fontFamily: {
             sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
@@ -39,16 +37,14 @@
   <!-- Custom Styles -->
   <style>
     :root {
-      --color-primary:     #06B6D4;
-      --color-primary-dark:#09080F;
-      --color-gold:        #A855F7;
-      --color-lime:        #A855F7;
-      --color-success:     #34D399;
-      --color-destructive: #F87171;
-      --color-warning:     #FBBF24;
-      --color-bg:          #0D0B14;
-      --color-card:        rgba(255,255,255,0.04);
-      --color-muted:       rgba(255,255,255,0.08);
+      --color-primary:     #2D3E3F;
+      --color-primary-dark:#243131;
+      --color-gold:        #C9A962;
+      --color-success:     #5C7A5C;
+      --color-destructive: #C67B5C;
+      --color-bg:          #F5F3ED;
+      --color-card:        #FFFFFF;
+      --color-muted:       #E8E5DE;
     }
 
     [x-cloak] { display: none !important; }
@@ -56,40 +52,6 @@
     body {
       background: var(--color-bg);
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      color: rgba(255,255,255,0.85);
-    }
-
-    /* Ambient glow blobs */
-    body::before {
-      content: '';
-      position: fixed;
-      top: -20%;
-      left: -10%;
-      width: 50%;
-      height: 60%;
-      background: radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 70%);
-      pointer-events: none;
-      z-index: 0;
-    }
-    body::after {
-      content: '';
-      position: fixed;
-      bottom: -30%;
-      right: -10%;
-      width: 50%;
-      height: 60%;
-      background: radial-gradient(circle, rgba(6,182,212,0.06) 0%, transparent 70%);
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    /* Glass utility */
-    .glass {
-      background: rgba(255,255,255,0.04);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 16px;
     }
 
     /* Sidebar */
@@ -100,7 +62,6 @@
       left: 0;
       bottom: 0;
       background: var(--color-primary-dark);
-      border-right: 1px solid rgba(255,255,255,0.06);
       z-index: 40;
       display: flex;
       flex-direction: column;
@@ -115,10 +76,8 @@
       right: 0;
       height: 64px;
       z-index: 30;
-      background: rgba(13,11,20,0.8);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: var(--color-card);
+      border-bottom: 1px solid var(--color-muted);
       display: flex;
       align-items: center;
       padding: 0 24px;
@@ -130,15 +89,13 @@
       padding-top: 80px;
       padding-bottom: 40px;
       min-height: 100vh;
-      position: relative;
-      z-index: 1;
     }
 
     /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+    ::-webkit-scrollbar-thumb { background: var(--color-muted); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #ccc; }
 
     /* Sidebar nav item */
     .nav-item {
@@ -150,39 +107,37 @@
       margin: 2px 12px;
       font-size: 14px;
       font-weight: 500;
-      color: rgba(255,255,255,0.45);
+      color: rgba(255,255,255,0.6);
       cursor: pointer;
       transition: all 0.15s ease;
     }
     .nav-item:hover {
       color: rgba(255,255,255,0.9);
-      background: rgba(255,255,255,0.05);
+      background: rgba(255,255,255,0.07);
     }
     .nav-item.active {
       color: #fff;
-      background: rgba(168,85,247,0.12);
-      border-left: 3px solid var(--color-primary);
+      background: rgba(201,169,98,0.15);
+      border-left: 3px solid var(--color-gold);
       padding-left: 17px;
     }
 
     /* KPI card */
     .kpi-card {
-      background: rgba(255,255,255,0.04);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-radius: 16px;
+      background: var(--color-card);
+      border-radius: 12px;
       padding: 20px 24px;
-      border: 1px solid rgba(255,255,255,0.06);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      border: 1px solid var(--color-muted);
     }
 
     /* Chart container */
     .chart-container {
-      background: rgba(255,255,255,0.04);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-radius: 16px;
+      background: var(--color-card);
+      border-radius: 12px;
       padding: 24px;
-      border: 1px solid rgba(255,255,255,0.06);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      border: 1px solid var(--color-muted);
     }
 
     /* Table styles */
@@ -195,25 +150,25 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: rgba(255,255,255,0.4);
+      color: #888;
       padding: 10px 12px;
-      border-bottom: 2px solid rgba(6,182,212,0.3);
+      border-bottom: 2px solid var(--color-muted);
       white-space: nowrap;
     }
     .data-table td {
       padding: 10px 12px;
       font-size: 13px;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-      color: rgba(255,255,255,0.85);
+      border-bottom: 1px solid #f0ede6;
+      color: var(--color-primary);
     }
     .data-table tbody tr:hover {
-      background: rgba(255,255,255,0.03);
+      background: rgba(245,243,237,0.5);
     }
     .data-table .total-row td {
       font-weight: 700;
-      border-top: 2px solid rgba(6,182,212,0.4);
+      border-top: 2px solid var(--color-primary);
       border-bottom: none;
-      background: rgba(6,182,212,0.06);
+      background: rgba(245,243,237,0.3);
     }
 
     /* Period picker */
@@ -222,12 +177,10 @@
       top: 100%;
       right: 0;
       margin-top: 8px;
-      background: #13111C;
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-radius: 16px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-      border: 1px solid rgba(255,255,255,0.08);
+      background: var(--color-card);
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+      border: 1px solid var(--color-muted);
       padding: 20px;
       z-index: 50;
       width: 420px;
@@ -242,28 +195,27 @@
       cursor: pointer;
       transition: all 0.1s ease;
       text-align: center;
-      color: rgba(255,255,255,0.7);
     }
     .month-btn.selected {
-      background: var(--color-primary);
+      background: var(--color-gold);
       color: #fff;
     }
     .month-btn.in-range {
-      background: rgba(168,85,247,0.15);
-      color: rgba(255,255,255,0.9);
+      background: rgba(201,169,98,0.2);
+      color: var(--color-primary);
     }
     .month-btn.no-data {
       opacity: 0.3;
       cursor: default;
     }
     .month-btn:not(.no-data):not(.selected):hover {
-      background: rgba(168,85,247,0.1);
+      background: rgba(201,169,98,0.1);
     }
 
     /* Insight card borders */
     .insight-success  { border-left: 4px solid var(--color-success); }
     .insight-warning  { border-left: 4px solid var(--color-destructive); }
-    .insight-info     { border-left: 4px solid var(--color-primary); }
+    .insight-info     { border-left: 4px solid var(--color-gold); }
 
     /* Loading overlay */
     .loading-overlay {
@@ -272,8 +224,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(13,11,20,0.7);
-      border-radius: 16px;
+      background: rgba(245,243,237,0.7);
+      border-radius: 12px;
       z-index: 10;
     }
 
@@ -285,21 +237,6 @@
       animation: spin 0.8s linear infinite;
     }
 
-    /* Select / Input dark styles */
-    select, input[type="text"] {
-      background: rgba(255,255,255,0.06) !important;
-      border-color: rgba(255,255,255,0.1) !important;
-      color: rgba(255,255,255,0.9) !important;
-    }
-    select:focus, input[type="text"]:focus {
-      border-color: rgba(6,182,212,0.5) !important;
-      outline: none;
-    }
-    select option {
-      background: #13111C;
-      color: rgba(255,255,255,0.9);
-    }
-
     /* Print styles */
     @media print {
       .sidebar, .topbar { display: none !important; }
@@ -307,16 +244,11 @@
         margin-left: 0 !important;
         padding-top: 0 !important;
       }
-      body::before, body::after { display: none; }
-      body { background: #fff; color: #000; }
       .kpi-card, .chart-container {
         break-inside: avoid;
         box-shadow: none;
         border: 1px solid #ddd;
-        background: #fff;
-        backdrop-filter: none;
       }
-      .data-table td { color: #000; }
     }
   </style>
 </head>
@@ -328,17 +260,11 @@
   <!-- ============================================================ -->
   <aside class="sidebar">
     <!-- Logo -->
-    <div class="flex items-start gap-3 px-5 py-5 border-b border-white/10">
-      <img src="/logo.png" class="w-7 h-7 mt-0.5" style="filter: brightness(0) invert(1)" alt="Thrive">
-      <div class="min-w-0">
-        <div class="text-white font-bold text-[13px] tracking-wide leading-tight">THRIVE</div>
-        <div class="text-white/40 text-[9px] font-semibold tracking-[0.2em] leading-tight">BUSINESS INTELLIGENCE</div>
-        <div class="mt-1.5 flex items-center gap-1.5">
-          <div class="h-px flex-1 bg-white/10"></div>
-          <div class="text-[8px] tracking-[0.15em] text-white/30 font-medium whitespace-nowrap">POWERED BY</div>
-          <span class="text-[10px] font-bold tracking-wide" style="background:linear-gradient(180deg,#E8A94A,#D4874A);-webkit-background-clip:text;-webkit-text-fill-color:transparent">TAPS</span>
-          <div class="h-px flex-1 bg-white/10"></div>
-        </div>
+    <div class="flex items-center gap-3 px-5 py-5 border-b border-white/10">
+      <img src="/logo.png" class="w-10 h-10" style="filter: brightness(0) invert(1)" alt="Thrive">
+      <div>
+        <div class="text-white font-bold text-sm tracking-wider">THRIVE</div>
+        <div class="text-white/50 text-[11px] tracking-widest">ANALYTICS</div>
       </div>
     </div>
 
@@ -445,7 +371,7 @@
   <!-- ============================================================ -->
   <header class="topbar">
     <!-- Page title -->
-    <h1 class="text-lg font-semibold text-white/90" x-text="pageTitle()"></h1>
+    <h1 class="text-lg font-semibold text-primary" x-text="pageTitle()"></h1>
 
     <div class="ml-auto flex items-center gap-3">
       <!-- Brand search (only in brands view) -->
@@ -458,10 +384,10 @@
                placeholder="Search brands..."
                class="w-56 px-3 py-1.5 text-sm border border-muted rounded-lg bg-cream focus:outline-none focus:border-gold">
         <!-- Brand dropdown -->
-        <div class="absolute top-full left-0 right-0 mt-1 bg-[#13111C] border border-white/[0.08] rounded-lg shadow-lg max-h-64 overflow-y-auto z-50"
+        <div class="absolute top-full left-0 right-0 mt-1 bg-white border border-muted rounded-lg shadow-lg max-h-64 overflow-y-auto z-50"
              x-show="showBrandDD && filteredBrands().length > 0" x-cloak>
           <template x-for="b in filteredBrands()" :key="b">
-            <div class="px-3 py-2 text-sm cursor-pointer hover:bg-white/[0.06] flex items-center gap-1.5"
+            <div class="px-3 py-2 text-sm cursor-pointer hover:bg-cream flex items-center gap-1.5"
                  @click="selectedBrand = b; brandSearch = b; showBrandDD = false; loadBrandReport();">
               <span x-text="b"></span>
               <img x-show="internalBrands.has(b.toUpperCase())" src="/logo.png" class="w-4 h-4 opacity-60" title="Thrive In-House Brand">
@@ -521,7 +447,7 @@
                 {label:'Q4',       type:'q4'}
               ]" :key="p.label">
                 <button class="px-3 py-1 text-xs font-medium rounded-md border transition-colors"
-                        :class="isPresetActive(p) ? 'bg-gold text-white border-gold' : 'border-muted text-gray-400 hover:border-gold'"
+                        :class="isPresetActive(p) ? 'bg-gold text-white border-gold' : 'border-muted text-gray-600 hover:border-gold'"
                         @click="applyPreset(p)"
                         x-text="p.label"></button>
               </template>
@@ -554,7 +480,7 @@
             </div>
             <div class="flex gap-2">
               <button @click="clearPeriod()"
-                      class="px-3 py-1 text-xs text-gray-500 hover:text-gray-300">Clear</button>
+                      class="px-3 py-1 text-xs text-gray-500 hover:text-gray-700">Clear</button>
               <button @click="applyPeriod()"
                       class="px-4 py-1 text-xs font-medium bg-gold text-white rounded-md hover:bg-gold/90">Apply</button>
             </div>
@@ -572,7 +498,7 @@
     <!-- Loading overlay -->
     <div x-show="loading" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-cream/70" style="margin-left:260px">
       <div class="flex flex-col items-center gap-3">
-        <svg class="animate-spin" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#06B6D4" stroke-width="2">
+        <svg class="animate-spin" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#C9A962" stroke-width="2">
           <circle cx="12" cy="12" r="10" stroke-opacity="0.2"/>
           <path d="M12 2a10 10 0 019.8 8" stroke-linecap="round"/>
         </svg>
@@ -605,22 +531,22 @@
             <!-- Revenue -->
             <div class="kpi-card">
               <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Revenue</div>
-              <div class="text-2xl font-bold text-white/90" x-text="fmtCurrency(execData.kpis?.total_revenue)"></div>
+              <div class="text-2xl font-bold text-primary" x-text="fmtCurrency(execData.kpis?.total_revenue)"></div>
             </div>
             <!-- Profit -->
             <div class="kpi-card">
               <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Profit</div>
-              <div class="text-2xl font-bold text-white/90" x-text="fmtCurrency(execData.kpis?.net_profit)"></div>
+              <div class="text-2xl font-bold text-primary" x-text="fmtCurrency(execData.kpis?.net_profit)"></div>
             </div>
             <!-- Margin -->
             <div class="kpi-card">
               <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Margin</div>
-              <div class="text-2xl font-bold text-white/90" x-text="fmtPct(execData.kpis?.blended_margin)"></div>
+              <div class="text-2xl font-bold text-primary" x-text="fmtPct(execData.kpis?.blended_margin)"></div>
             </div>
             <!-- Units -->
             <div class="kpi-card">
               <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Units Sold</div>
-              <div class="text-2xl font-bold text-white/90" x-text="fmtN(execData.kpis?.total_units)"></div>
+              <div class="text-2xl font-bold text-primary" x-text="fmtN(execData.kpis?.total_units)"></div>
             </div>
             <!-- Discounts (red) -->
             <div class="kpi-card">
@@ -631,7 +557,7 @@
             <div class="kpi-card">
               <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Full Price %</div>
               <div class="text-2xl font-bold"
-                   :class="(execData.kpis?.full_price_pct ?? 0) < 30 ? 'text-destructive' : 'text-white/90'"
+                   :class="(execData.kpis?.full_price_pct ?? 0) < 30 ? 'text-destructive' : 'text-primary'"
                    x-text="fmtPct(execData.kpis?.full_price_pct)"></div>
             </div>
           </div>
@@ -641,12 +567,12 @@
             <!-- Avg Monthly Revenue -->
             <div class="kpi-card">
               <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Avg Monthly Rev</div>
-              <div class="text-xl font-bold text-white/90" x-text="fmtCurrency(execData.secondary_kpis?.avg_monthly_revenue)"></div>
+              <div class="text-xl font-bold text-primary" x-text="fmtCurrency(execData.secondary_kpis?.avg_monthly_revenue)"></div>
             </div>
             <!-- Avg Monthly Profit -->
             <div class="kpi-card">
               <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Avg Monthly Profit</div>
-              <div class="text-xl font-bold text-white/90" x-text="fmtCurrency(execData.secondary_kpis?.avg_monthly_profit)"></div>
+              <div class="text-xl font-bold text-primary" x-text="fmtCurrency(execData.secondary_kpis?.avg_monthly_profit)"></div>
             </div>
             <!-- Best Month -->
             <div class="kpi-card">
@@ -665,13 +591,13 @@
           <!-- Excluded Transactions Callout -->
           <div class="mb-6 p-4 bg-gold/10 border border-gold/30 rounded-lg flex items-start gap-3"
                x-show="execData.excluded_transactions" x-cloak>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#06B6D4" stroke-width="2" class="mt-0.5 shrink-0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A962" stroke-width="2" class="mt-0.5 shrink-0">
               <circle cx="12" cy="12" r="10"/>
               <line x1="12" y1="8" x2="12" y2="12"/>
               <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
             <div>
-              <div class="text-sm font-semibold text-white/90 mb-1">Excluded Transactions</div>
+              <div class="text-sm font-semibold text-primary mb-1">Excluded Transactions</div>
               <div class="text-xs text-gray-500">
                 <span x-text="fmtN(execData.excluded_transactions?.total)"></span> non-regular transactions excluded
                 (<span x-text="fmtCurrency(execData.excluded_transactions?.total_value)"></span> revenue).
@@ -683,7 +609,7 @@
           <!-- Sales Mix Health Indicator -->
           <div class="mb-6 chart-container" x-show="execData.sales_mix" x-cloak>
             <div class="flex items-center justify-between mb-4">
-              <h3 class="text-sm font-semibold text-white/90">Sales Mix</h3>
+              <h3 class="text-sm font-semibold text-primary">Sales Mix</h3>
               <span class="px-2 py-0.5 text-xs font-medium rounded-full"
                     :class="execData.sales_mix?.health === 'healthy'
                       ? 'bg-success/10 text-success'
@@ -697,7 +623,7 @@
               <div class="flex-1">
                 <div class="flex justify-between text-xs mb-1">
                   <span class="text-gray-500">Full Price</span>
-                  <span class="font-semibold text-white/90" x-text="fmtPct(execData.sales_mix?.full_price_pct)"></span>
+                  <span class="font-semibold text-primary" x-text="fmtPct(execData.sales_mix?.full_price_pct)"></span>
                 </div>
                 <div class="h-3 bg-muted rounded-full overflow-hidden">
                   <div class="h-full bg-success rounded-full transition-all" :style="'width:' + (execData.sales_mix?.full_price_pct || 0) + '%'"></div>
@@ -707,7 +633,7 @@
               <div class="flex-1">
                 <div class="flex justify-between text-xs mb-1">
                   <span class="text-gray-500">Discounted</span>
-                  <span class="font-semibold text-white/90" x-text="fmtPct(execData.sales_mix?.discounted_pct)"></span>
+                  <span class="font-semibold text-primary" x-text="fmtPct(execData.sales_mix?.discounted_pct)"></span>
                 </div>
                 <div class="h-3 bg-muted rounded-full overflow-hidden">
                   <div class="h-full bg-destructive rounded-full transition-all" :style="'width:' + (execData.sales_mix?.discounted_pct || 0) + '%'"></div>
@@ -718,7 +644,7 @@
 
           <!-- Monthly Performance Combo Chart -->
           <div class="mb-6 chart-container">
-            <h3 class="text-sm font-semibold text-white/90 mb-4">Monthly Performance</h3>
+            <h3 class="text-sm font-semibold text-primary mb-4">Monthly Performance</h3>
             <div class="relative" style="height:320px">
               <canvas id="chart-exec-trend"></canvas>
             </div>
@@ -726,14 +652,14 @@
 
           <!-- Insights -->
           <div class="mb-6" x-show="execData.insights && execData.insights.length > 0" x-cloak>
-            <h3 class="text-sm font-semibold text-white/90 mb-3">Insights</h3>
+            <h3 class="text-sm font-semibold text-primary mb-3">Insights</h3>
             <div class="space-y-2">
               <template x-for="(insight, idx) in (execData.insights || [])" :key="idx">
-                <div class="p-3 bg-white/[0.04] rounded-lg text-sm"
+                <div class="p-3 bg-white rounded-lg text-sm"
                      :class="insight.type === 'success' ? 'insight-success' :
                              insight.type === 'warning' ? 'insight-warning' : 'insight-info'">
                   <span class="font-semibold" x-text="insight.title"></span>
-                  <span class="text-gray-400 ml-1" x-text="insight.detail"></span>
+                  <span class="text-gray-600 ml-1" x-text="insight.detail"></span>
                 </div>
               </template>
             </div>
@@ -743,7 +669,7 @@
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <!-- Top Categories -->
             <div class="chart-container">
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Top Categories</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Top Categories</h3>
               <div class="relative" style="height:300px">
                 <canvas id="chart-exec-categories"></canvas>
               </div>
@@ -751,7 +677,7 @@
 
             <!-- Top Stores -->
             <div class="chart-container">
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Top Stores</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Top Stores</h3>
               <div class="relative" style="height:300px">
                 <canvas id="chart-exec-stores"></canvas>
               </div>
@@ -785,12 +711,12 @@
             <!-- Total Revenue -->
             <div class="kpi-card">
               <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Total Revenue</div>
-              <div class="text-2xl font-bold text-white/90" x-text="fmtCurrency(momData.totals?.revenue)"></div>
+              <div class="text-2xl font-bold text-primary" x-text="fmtCurrency(momData.totals?.revenue)"></div>
             </div>
             <!-- Avg Margin -->
             <div class="kpi-card">
               <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Avg Margin</div>
-              <div class="text-2xl font-bold text-white/90" x-text="fmtPct(momData.totals?.avg_margin)"></div>
+              <div class="text-2xl font-bold text-primary" x-text="fmtPct(momData.totals?.avg_margin)"></div>
             </div>
             <!-- Best Month -->
             <div class="kpi-card">
@@ -802,7 +728,7 @@
 
           <!-- Monthly Data Table -->
           <div class="chart-container mb-6 overflow-x-auto">
-            <h3 class="text-sm font-semibold text-white/90 mb-4">Monthly Breakdown</h3>
+            <h3 class="text-sm font-semibold text-primary mb-4">Monthly Breakdown</h3>
             <table class="data-table">
               <thead>
                 <tr>
@@ -860,7 +786,7 @@
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <!-- Revenue Bar Chart -->
             <div class="chart-container">
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Revenue by Month</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Revenue by Month</h3>
               <div class="relative" style="height:300px">
                 <canvas id="chart-mom-revenue"></canvas>
               </div>
@@ -868,7 +794,7 @@
 
             <!-- Margin & Profit Combo Chart -->
             <div class="chart-container">
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Margin & Profit Trend</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Margin & Profit Trend</h3>
               <div class="relative" style="height:300px">
                 <canvas id="chart-mom-combo"></canvas>
               </div>
@@ -877,7 +803,7 @@
 
           <!-- Year-over-Year Comparison -->
           <div x-show="momData.yoy_comparison && momData.yoy_comparison.length > 0" class="chart-container mb-6 overflow-x-auto">
-            <h3 class="text-sm font-semibold text-white/90 mb-4">
+            <h3 class="text-sm font-semibold text-primary mb-4">
               Year-over-Year Comparison:
               <span x-text="momData.yoy_comparison?.[0]?.y1"></span> vs <span x-text="momData.yoy_comparison?.[0]?.y2"></span>
             </h3>
@@ -939,12 +865,12 @@
             <!-- Total Stores -->
             <div class="kpi-card">
               <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Stores</div>
-              <div class="text-2xl font-bold text-white/90" x-text="storeData.stores?.length || 0"></div>
+              <div class="text-2xl font-bold text-primary" x-text="storeData.stores?.length || 0"></div>
             </div>
             <!-- Company Avg Margin -->
             <div class="kpi-card">
               <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Company Avg Margin</div>
-              <div class="text-2xl font-bold text-white/90" x-text="fmtPct(storeData.company_avg_margin)"></div>
+              <div class="text-2xl font-bold text-primary" x-text="fmtPct(storeData.company_avg_margin)"></div>
             </div>
             <!-- Top Performer -->
             <div class="kpi-card">
@@ -962,7 +888,7 @@
 
           <!-- Revenue by Store Horizontal Bar Chart -->
           <div class="mb-6 chart-container">
-            <h3 class="text-sm font-semibold text-white/90 mb-4">Revenue by Store</h3>
+            <h3 class="text-sm font-semibold text-primary mb-4">Revenue by Store</h3>
             <div class="relative" style="height:320px">
               <canvas id="chart-store-revenue"></canvas>
             </div>
@@ -973,12 +899,12 @@
             <!-- Top Performer Card -->
             <div class="chart-container border-l-4 border-success">
               <div class="flex items-center gap-2 mb-3">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5C7A5C" stroke-width="2">
                   <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                 </svg>
                 <h3 class="text-sm font-semibold text-success">Top Performer</h3>
               </div>
-              <div class="text-lg font-bold text-white/90 mb-1" x-text="storeData.top_performer || '-'"></div>
+              <div class="text-lg font-bold text-primary mb-1" x-text="storeData.top_performer || '-'"></div>
               <div class="grid grid-cols-3 gap-4 mt-3">
                 <div>
                   <div class="text-[10px] uppercase text-gray-400">Revenue</div>
@@ -998,14 +924,14 @@
             <!-- Bottom Performer Card -->
             <div class="chart-container border-l-4 border-destructive">
               <div class="flex items-center gap-2 mb-3">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F87171" stroke-width="2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C67B5C" stroke-width="2">
                   <circle cx="12" cy="12" r="10"/>
                   <line x1="12" y1="8" x2="12" y2="12"/>
                   <line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
                 <h3 class="text-sm font-semibold text-destructive">Needs Attention</h3>
               </div>
-              <div class="text-lg font-bold text-white/90 mb-1" x-text="storeData.bottom_performer || '-'"></div>
+              <div class="text-lg font-bold text-primary mb-1" x-text="storeData.bottom_performer || '-'"></div>
               <div class="grid grid-cols-3 gap-4 mt-3">
                 <div>
                   <div class="text-[10px] uppercase text-gray-400">Revenue</div>
@@ -1025,7 +951,7 @@
 
           <!-- All Stores Table -->
           <div class="chart-container mb-6 overflow-x-auto">
-            <h3 class="text-sm font-semibold text-white/90 mb-4">All Stores</h3>
+            <h3 class="text-sm font-semibold text-primary mb-4">All Stores</h3>
             <table class="data-table">
               <thead>
                 <tr>
@@ -1107,7 +1033,7 @@
           <!-- Company Header -->
           <div class="mb-6 p-5 bg-primary text-white rounded-xl">
             <div class="text-lg font-bold tracking-wide">Thrive Cannabis</div>
-            <div class="text-purple-400 text-sm font-semibold mt-1" x-text="yearEndYear + ' Annual Performance Report'"></div>
+            <div class="text-gold text-sm font-semibold mt-1" x-text="yearEndYear + ' Annual Performance Report'"></div>
             <div class="text-white/60 text-xs mt-2">
               <span x-text="yearEndData.header?.stores || 0"></span> Stores &middot;
               <span x-text="yearEndData.header?.brands || 0"></span> Brands &middot;
@@ -1120,32 +1046,32 @@
             <!-- Revenue -->
             <div class="kpi-card">
               <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Total Revenue</div>
-              <div class="text-2xl font-bold text-white/90" x-text="fmtCurrency(yearEndData.kpis?.total_revenue)"></div>
+              <div class="text-2xl font-bold text-primary" x-text="fmtCurrency(yearEndData.kpis?.total_revenue)"></div>
               <div class="text-xs text-gray-400 mt-1">Avg/Mo: <span x-text="fmtCurrency(yearEndData.kpis?.avg_monthly_revenue)"></span></div>
             </div>
             <!-- Profit -->
             <div class="kpi-card">
               <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Total Profit</div>
-              <div class="text-2xl font-bold text-white/90" x-text="fmtCurrency(yearEndData.kpis?.total_profit)"></div>
+              <div class="text-2xl font-bold text-primary" x-text="fmtCurrency(yearEndData.kpis?.total_profit)"></div>
               <div class="text-xs text-gray-400 mt-1">Avg/Mo: <span x-text="fmtCurrency(yearEndData.kpis?.avg_monthly_profit)"></span></div>
             </div>
             <!-- Margin -->
             <div class="kpi-card">
               <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Blended Margin</div>
-              <div class="text-2xl font-bold text-white/90" x-text="fmtPct(yearEndData.kpis?.blended_margin)"></div>
+              <div class="text-2xl font-bold text-primary" x-text="fmtPct(yearEndData.kpis?.blended_margin)"></div>
               <div class="text-xs text-gray-400 mt-1">FP: <span x-text="fmtPct(yearEndData.kpis?.full_price_pct)"></span></div>
             </div>
             <!-- Units -->
             <div class="kpi-card">
               <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Total Units</div>
-              <div class="text-2xl font-bold text-white/90" x-text="fmtN(yearEndData.kpis?.total_units)"></div>
+              <div class="text-2xl font-bold text-primary" x-text="fmtN(yearEndData.kpis?.total_units)"></div>
               <div class="text-xs text-gray-400 mt-1">Discounts: <span class="text-destructive" x-text="fmtCurrency(yearEndData.kpis?.total_discounts)"></span></div>
             </div>
           </div>
 
           <!-- Monthly Performance Trend Chart -->
           <div class="mb-6 chart-container">
-            <h3 class="text-sm font-semibold text-white/90 mb-4">Monthly Performance Trend</h3>
+            <h3 class="text-sm font-semibold text-primary mb-4">Monthly Performance Trend</h3>
             <div class="relative" style="height:320px">
               <canvas id="chart-yearend-trend"></canvas>
             </div>
@@ -1153,7 +1079,7 @@
 
           <!-- Performance Highlights -->
           <div class="mb-6" x-show="yearEndData.highlights">
-            <h3 class="text-sm font-semibold text-white/90 mb-3">Performance Highlights</h3>
+            <h3 class="text-sm font-semibold text-primary mb-3">Performance Highlights</h3>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
               <!-- Best Revenue Month -->
               <div class="kpi-card border-l-4 border-success">
@@ -1184,14 +1110,14 @@
 
           <!-- Key Insights -->
           <div class="mb-6" x-show="yearEndData.key_insights && yearEndData.key_insights.length > 0" x-cloak>
-            <h3 class="text-sm font-semibold text-white/90 mb-3">Key Insights</h3>
+            <h3 class="text-sm font-semibold text-primary mb-3">Key Insights</h3>
             <div class="space-y-2">
               <template x-for="(insight, idx) in (yearEndData.key_insights || [])" :key="idx">
-                <div class="p-3 bg-white/[0.04] rounded-lg text-sm"
+                <div class="p-3 bg-white rounded-lg text-sm"
                      :class="insight.type === 'success' ? 'insight-success' :
                              insight.type === 'warning' ? 'insight-warning' : 'insight-info'">
                   <span class="font-semibold" x-text="insight.title"></span>
-                  <span class="text-gray-400 ml-1" x-text="insight.detail"></span>
+                  <span class="text-gray-600 ml-1" x-text="insight.detail"></span>
                 </div>
               </template>
             </div>
@@ -1199,7 +1125,7 @@
 
           <!-- Year-over-Year Comparison -->
           <div class="mb-6" x-show="yearEndData.yoy_comparison" x-cloak>
-            <h3 class="text-sm font-semibold text-white/90 mb-3">Year-over-Year Comparison vs <span x-text="yearEndData.yoy_comparison?.prev_year"></span></h3>
+            <h3 class="text-sm font-semibold text-primary mb-3">Year-over-Year Comparison vs <span x-text="yearEndData.yoy_comparison?.prev_year"></span></h3>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <!-- Revenue Change -->
               <div class="kpi-card">
@@ -1207,7 +1133,7 @@
                 <div class="text-2xl font-bold"
                      :class="(yearEndData.yoy_comparison?.revenue_change_pct ?? 0) >= 0 ? 'text-success' : 'text-destructive'"
                      x-text="fmtPctSigned(yearEndData.yoy_comparison?.revenue_change_pct)"></div>
-                <div class="text-[11px] text-gray-500 mt-1">
+                <div class="text-[11px] text-gray-400 mt-1">
                   <span x-text="fmtCurrency(yearEndData.yoy_comparison?.prev_revenue)"></span>
                   <span class="mx-0.5">&rarr;</span>
                   <span x-text="fmtCurrency(yearEndData.kpis?.total_revenue)"></span>
@@ -1219,7 +1145,7 @@
                 <div class="text-2xl font-bold"
                      :class="(yearEndData.yoy_comparison?.margin_change_pts ?? 0) >= 0 ? 'text-success' : 'text-destructive'"
                      x-text="((yearEndData.yoy_comparison?.margin_change_pts ?? 0) > 0 ? '+' : '') + (yearEndData.yoy_comparison?.margin_change_pts ?? 0).toFixed(1) + ' pts'"></div>
-                <div class="text-[11px] text-gray-500 mt-1">
+                <div class="text-[11px] text-gray-400 mt-1">
                   <span x-text="(yearEndData.yoy_comparison?.margin_prev ?? 0).toFixed(1) + '%'"></span>
                   <span class="mx-0.5">&rarr;</span>
                   <span x-text="(yearEndData.yoy_comparison?.margin_current ?? 0).toFixed(1) + '%'"></span>
@@ -1231,7 +1157,7 @@
                 <div class="text-2xl font-bold"
                      :class="(yearEndData.yoy_comparison?.profit_change_pct ?? 0) >= 0 ? 'text-success' : 'text-destructive'"
                      x-text="fmtPctSigned(yearEndData.yoy_comparison?.profit_change_pct)"></div>
-                <div class="text-[11px] text-gray-500 mt-1">
+                <div class="text-[11px] text-gray-400 mt-1">
                   <span x-text="fmtCurrency(yearEndData.yoy_comparison?.prev_profit)"></span>
                   <span class="mx-0.5">&rarr;</span>
                   <span x-text="fmtCurrency(yearEndData.kpis?.total_profit)"></span>
@@ -1243,7 +1169,7 @@
                 <div class="text-2xl font-bold"
                      :class="(yearEndData.yoy_comparison?.rev_per_unit_change_pct ?? 0) >= 0 ? 'text-success' : 'text-destructive'"
                      x-text="fmtPctSigned(yearEndData.yoy_comparison?.rev_per_unit_change_pct)"></div>
-                <div class="text-[11px] text-gray-500 mt-1">
+                <div class="text-[11px] text-gray-400 mt-1">
                   <span x-text="'$' + (yearEndData.yoy_comparison?.rev_per_unit_prev ?? 0).toFixed(2)"></span>
                   <span class="mx-0.5">&rarr;</span>
                   <span x-text="'$' + (yearEndData.yoy_comparison?.rev_per_unit_current ?? 0).toFixed(2)"></span>
@@ -1251,12 +1177,12 @@
               </div>
             </div>
             <!-- Margin Impact Callout -->
-            <div class="mt-4 p-4 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.06]"
+            <div class="mt-4 p-4 rounded-lg border border-success/30 bg-success/5"
                  x-show="yearEndData.yoy_comparison?.margin_impact_dollars > 0">
               <div class="flex items-start gap-3">
-                <div class="text-emerald-400 text-lg leading-none mt-0.5">&#9650;</div>
+                <div class="text-success text-lg leading-none mt-0.5">&#9650;</div>
                 <div>
-                  <div class="text-sm font-semibold text-emerald-400">
+                  <div class="text-sm font-semibold text-success">
                     Margin improvement added
                     <span x-text="fmtCurrency(yearEndData.yoy_comparison?.margin_impact_dollars)"></span>
                     to the bottom line
@@ -1275,7 +1201,7 @@
 
           <!-- Monthly Summary Table -->
           <div class="chart-container mb-6 overflow-x-auto">
-            <h3 class="text-sm font-semibold text-white/90 mb-4">Monthly Summary</h3>
+            <h3 class="text-sm font-semibold text-primary mb-4">Monthly Summary</h3>
             <table class="data-table">
               <thead>
                 <tr>
@@ -1296,7 +1222,7 @@
                     <td class="text-right">
                       <span :class="(row.margin ?? 0) >= 50 ? 'text-success font-semibold' :
                                      (row.margin ?? 0) >= 40 ? 'font-semibold' : 'text-destructive font-semibold'"
-                            :style="(row.margin ?? 0) >= 40 && (row.margin ?? 0) < 50 ? 'color:#FBBF24' : ''"
+                            :style="(row.margin ?? 0) >= 40 && (row.margin ?? 0) < 50 ? 'color:#B8860B' : ''"
                             x-text="fmtPct(row.margin)"></span>
                     </td>
                     <td class="text-right" x-text="fmtN(row.units)"></td>
@@ -1354,7 +1280,7 @@
 
         <!-- Selected brand label -->
         <div class="text-sm text-gray-400 font-medium flex items-center gap-2" x-show="selectedBrand" x-cloak>
-          Viewing: <span class="text-white/90 font-semibold" x-text="selectedBrand"></span>
+          Viewing: <span class="text-primary font-semibold" x-text="selectedBrand"></span>
           <img x-show="selectedBrand && internalBrands.has(selectedBrand.toUpperCase())" src="/logo.png" class="w-4 h-4 opacity-60" title="Thrive In-House Brand">
         </div>
 
@@ -1362,10 +1288,10 @@
           <!-- Sub-tabs -->
           <div class="flex rounded-lg border border-muted overflow-hidden">
             <button class="px-4 py-1.5 text-xs font-medium transition-colors"
-                    :class="brandSubTab === 'dispensary' ? 'bg-gold text-white' : 'bg-cream text-gray-400 hover:bg-muted'"
+                    :class="brandSubTab === 'dispensary' ? 'bg-gold text-white' : 'bg-cream text-gray-600 hover:bg-muted'"
                     @click="brandSubTab = 'dispensary'">Dispensary Report</button>
             <button class="px-4 py-1.5 text-xs font-medium transition-colors"
-                    :class="brandSubTab === 'facing' ? 'bg-gold text-white' : 'bg-cream text-gray-400 hover:bg-muted'"
+                    :class="brandSubTab === 'facing' ? 'bg-gold text-white' : 'bg-cream text-gray-600 hover:bg-muted'"
                     @click="brandSubTab = 'facing'; if(selectedBrand && !facingReport) loadFacingReport();">Brand Facing</button>
           </div>
 
@@ -1393,29 +1319,29 @@
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Revenue</div>
-                <div class="text-2xl font-bold text-white/90" x-text="fmtCurrency(brandReport.kpis?.revenue)"></div>
+                <div class="text-2xl font-bold text-primary" x-text="fmtCurrency(brandReport.kpis?.revenue)"></div>
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Margin</div>
                 <div class="text-2xl font-bold" x-text="fmtPct(brandReport.kpis?.margin)"
                      :class="(brandReport.kpis?.margin ?? 0) >= 50 ? 'text-success' :
                              (brandReport.kpis?.margin ?? 0) >= 40 ? '' : 'text-destructive'"
-                     :style="(brandReport.kpis?.margin ?? 0) >= 40 && (brandReport.kpis?.margin ?? 0) < 50 ? 'color:#FBBF24' : ''"></div>
+                     :style="(brandReport.kpis?.margin ?? 0) >= 40 && (brandReport.kpis?.margin ?? 0) < 50 ? 'color:#B8860B' : ''"></div>
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Category Rank</div>
-                <div class="text-2xl font-bold text-white/90">
+                <div class="text-2xl font-bold text-primary">
                   #<span x-text="brandReport.kpis?.category_rank"></span>/<span x-text="brandReport.kpis?.category_total"></span>
                 </div>
                 <div class="text-xs text-gray-400" x-text="brandReport.kpis?.primary_category"></div>
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Units</div>
-                <div class="text-2xl font-bold text-white/90" x-text="fmtN(brandReport.kpis?.units)"></div>
+                <div class="text-2xl font-bold text-primary" x-text="fmtN(brandReport.kpis?.units)"></div>
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Customers</div>
-                <div class="text-2xl font-bold text-white/90" x-text="fmtN(brandReport.kpis?.customers)"></div>
+                <div class="text-2xl font-bold text-primary" x-text="fmtN(brandReport.kpis?.customers)"></div>
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">vs Category</div>
@@ -1429,7 +1355,7 @@
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div class="kpi-card border-l-4 border-l-gold">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Total Cost (Our Spend)</div>
-                <div class="text-2xl font-bold text-white/90" x-text="fmtCurrency(brandReport.kpis?.total_cost)"></div>
+                <div class="text-2xl font-bold text-primary" x-text="fmtCurrency(brandReport.kpis?.total_cost)"></div>
               </div>
               <div class="kpi-card border-l-4 border-l-gold">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Net Profit</div>
@@ -1439,18 +1365,18 @@
               </div>
               <div class="kpi-card border-l-4 border-l-gold">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Cost Per Unit</div>
-                <div class="text-2xl font-bold text-white/90" x-text="'$' + (brandReport.kpis?.cost_per_unit?.toFixed(2) || '0.00')"></div>
+                <div class="text-2xl font-bold text-primary" x-text="'$' + (brandReport.kpis?.cost_per_unit?.toFixed(2) || '0.00')"></div>
               </div>
               <div class="kpi-card border-l-4 border-l-gold">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Avg Monthly Spend</div>
-                <div class="text-2xl font-bold text-white/90" x-text="fmtCurrency(brandReport.kpis?.avg_monthly_cost)"></div>
+                <div class="text-2xl font-bold text-primary" x-text="fmtCurrency(brandReport.kpis?.avg_monthly_cost)"></div>
                 <div class="text-xs text-gray-400" x-text="(brandReport.kpis?.months_count || 0) + ' months'"></div>
               </div>
             </div>
 
             <!-- Monthly Revenue Trend Chart -->
             <div class="mb-6 chart-container">
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Monthly Revenue Trend</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Monthly Revenue Trend</h3>
               <div class="relative" style="height:300px">
                 <canvas id="chart-brand-trend"></canvas>
               </div>
@@ -1458,7 +1384,7 @@
 
             <!-- Monthly Cost & Revenue Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="brandReport.trend && brandReport.trend.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Monthly Cost & Revenue Breakdown</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Monthly Cost & Revenue Breakdown</h3>
               <table class="data-table">
                 <thead>
                   <tr>
@@ -1481,7 +1407,7 @@
                       <td class="text-right">
                         <span :class="(t.margin ?? 0) >= 50 ? 'text-success font-semibold' :
                                        (t.margin ?? 0) >= 40 ? 'font-semibold' : 'text-destructive font-semibold'"
-                              :style="(t.margin ?? 0) >= 40 && (t.margin ?? 0) < 50 ? 'color:#FBBF24' : ''"
+                              :style="(t.margin ?? 0) >= 40 && (t.margin ?? 0) < 50 ? 'color:#B8860B' : ''"
                               x-text="fmtPct(t.margin)"></span>
                       </td>
                       <td class="text-right" x-text="fmtN(t.units)"></td>
@@ -1495,13 +1421,13 @@
             <!-- Revenue by Category + Share of Category side by side -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               <div class="chart-container">
-                <h3 class="text-sm font-semibold text-white/90 mb-4">Revenue by Category</h3>
+                <h3 class="text-sm font-semibold text-primary mb-4">Revenue by Category</h3>
                 <div class="relative" style="height:280px">
                   <canvas id="chart-brand-categories"></canvas>
                 </div>
               </div>
               <div class="chart-container">
-                <h3 class="text-sm font-semibold text-white/90 mb-4">Share of Category</h3>
+                <h3 class="text-sm font-semibold text-primary mb-4">Share of Category</h3>
                 <div class="relative" style="height:280px">
                   <canvas id="chart-brand-soc"></canvas>
                 </div>
@@ -1510,7 +1436,7 @@
 
             <!-- Discount Depth Chart -->
             <div class="mb-6 chart-container">
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Discount Depth</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Discount Depth</h3>
               <div class="relative" style="height:280px">
                 <canvas id="chart-brand-depth"></canvas>
               </div>
@@ -1518,7 +1444,7 @@
 
             <!-- Velocity by Category Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="brandReport.velocity_by_category && brandReport.velocity_by_category.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Velocity by Category</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Velocity by Category</h3>
               <table class="data-table">
                 <thead>
                   <tr>
@@ -1540,7 +1466,7 @@
                       <td class="text-right">
                         <span class="font-semibold"
                               :class="(v.velocity_index ?? 0) > 120 ? 'text-success' :
-                                      (v.velocity_index ?? 0) < 80 ? 'text-destructive' : 'text-white/90'"
+                                      (v.velocity_index ?? 0) < 80 ? 'text-destructive' : 'text-primary'"
                               x-text="v.velocity_index?.toFixed(0)"></span>
                       </td>
                       <td class="text-right" x-text="fmtCurrency(v.brand_per_unit)"></td>
@@ -1554,7 +1480,7 @@
 
             <!-- Top Products Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="brandReport.top_products && brandReport.top_products.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Top Products</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Top Products</h3>
               <table class="data-table">
                 <thead>
                   <tr>
@@ -1579,7 +1505,7 @@
                       <td class="text-right">
                         <span :class="(p.margin ?? 0) >= 50 ? 'text-success font-semibold' :
                                        (p.margin ?? 0) >= 40 ? 'font-semibold' : 'text-destructive font-semibold'"
-                              :style="(p.margin ?? 0) >= 40 && (p.margin ?? 0) < 50 ? 'color:#FBBF24' : ''"
+                              :style="(p.margin ?? 0) >= 40 && (p.margin ?? 0) < 50 ? 'color:#B8860B' : ''"
                               x-text="fmtPct(p.margin)"></span>
                       </td>
                       <td class="text-right" x-text="fmtCurrency(p.profit)"></td>
@@ -1592,7 +1518,7 @@
 
             <!-- Deal Performance Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="brandReport.deal_performance && brandReport.deal_performance.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Deal Performance</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Deal Performance</h3>
               <table class="data-table">
                 <thead>
                   <tr>
@@ -1614,7 +1540,7 @@
                       <td class="text-right">
                         <span :class="(d.margin ?? 0) >= 50 ? 'text-success font-semibold' :
                                        (d.margin ?? 0) >= 40 ? 'font-semibold' : 'text-destructive font-semibold'"
-                              :style="(d.margin ?? 0) >= 40 && (d.margin ?? 0) < 50 ? 'color:#FBBF24' : ''"
+                              :style="(d.margin ?? 0) >= 40 && (d.margin ?? 0) < 50 ? 'color:#B8860B' : ''"
                               x-text="fmtPct(d.margin)"></span>
                       </td>
                       <td class="text-right" x-text="fmtCurrency(d.profit)"></td>
@@ -1626,7 +1552,7 @@
 
             <!-- Performance by Store Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="brandReport.by_store && brandReport.by_store.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Performance by Store</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Performance by Store</h3>
               <table class="data-table">
                 <thead>
                   <tr>
@@ -1649,7 +1575,7 @@
                       <td class="text-right">
                         <span :class="(s.margin ?? 0) >= 50 ? 'text-success font-semibold' :
                                        (s.margin ?? 0) >= 40 ? 'font-semibold' : 'text-destructive font-semibold'"
-                              :style="(s.margin ?? 0) >= 40 && (s.margin ?? 0) < 50 ? 'color:#FBBF24' : ''"
+                              :style="(s.margin ?? 0) >= 40 && (s.margin ?? 0) < 50 ? 'color:#B8860B' : ''"
                               x-text="fmtPct(s.margin)"></span>
                       </td>
                       <td class="text-right text-destructive" x-text="fmtPct(s.disc_rate)"></td>
@@ -1662,12 +1588,12 @@
 
             <!-- Recommendations -->
             <div class="mb-6" x-show="brandReport.recommendations && brandReport.recommendations.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-3">Recommendations</h3>
+              <h3 class="text-sm font-semibold text-primary mb-3">Recommendations</h3>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <template x-for="(rec, idx) in (brandReport.recommendations || [])" :key="idx">
                   <div class="p-4 rounded-lg text-sm text-white"
                        :class="rec.severity === 'high' ? 'bg-destructive' :
-                               rec.severity === 'medium' ? 'bg-amber-500' : 'bg-success'">
+                               rec.severity === 'medium' ? 'bg-[#E89B5C]' : 'bg-success'">
                     <div class="font-semibold mb-1" x-text="rec.title"></div>
                     <div class="opacity-90" x-text="rec.message || rec.detail"></div>
                   </div>
@@ -1695,36 +1621,36 @@
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Revenue</div>
-                <div class="text-2xl font-bold text-white/90" x-text="fmtCurrency(facingReport.kpis?.revenue)"></div>
+                <div class="text-2xl font-bold text-primary" x-text="fmtCurrency(facingReport.kpis?.revenue)"></div>
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Margin</div>
                 <div class="text-2xl font-bold" x-text="fmtPct(facingReport.kpis?.margin)"
                      :class="(facingReport.kpis?.margin ?? 0) >= 50 ? 'text-success' :
                              (facingReport.kpis?.margin ?? 0) >= 40 ? '' : 'text-destructive'"
-                     :style="(facingReport.kpis?.margin ?? 0) >= 40 && (facingReport.kpis?.margin ?? 0) < 50 ? 'color:#FBBF24' : ''"></div>
+                     :style="(facingReport.kpis?.margin ?? 0) >= 40 && (facingReport.kpis?.margin ?? 0) < 50 ? 'color:#B8860B' : ''"></div>
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Store Coverage</div>
-                <div class="text-2xl font-bold text-white/90" x-text="facingReport.kpis?.store_coverage || '-'"></div>
+                <div class="text-2xl font-bold text-primary" x-text="facingReport.kpis?.store_coverage || '-'"></div>
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Velocity Rank</div>
-                <div class="text-2xl font-bold text-white/90" x-text="facingReport.kpis?.velocity_rank || '-'"></div>
+                <div class="text-2xl font-bold text-primary" x-text="facingReport.kpis?.velocity_rank || '-'"></div>
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Units</div>
-                <div class="text-2xl font-bold text-white/90" x-text="fmtN(facingReport.kpis?.units)"></div>
+                <div class="text-2xl font-bold text-primary" x-text="fmtN(facingReport.kpis?.units)"></div>
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Full Price %</div>
-                <div class="text-2xl font-bold text-white/90" x-text="fmtPct(facingReport.kpis?.full_price_pct)"></div>
+                <div class="text-2xl font-bold text-primary" x-text="fmtPct(facingReport.kpis?.full_price_pct)"></div>
               </div>
             </div>
 
             <!-- Distribution Scorecard Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="facingReport.distribution_scorecard && facingReport.distribution_scorecard.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Distribution Scorecard</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Distribution Scorecard</h3>
               <table class="data-table">
                 <thead>
                   <tr>
@@ -1756,13 +1682,13 @@
             <!-- Share of Category + Velocity Benchmarking side by side -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               <div class="chart-container">
-                <h3 class="text-sm font-semibold text-white/90 mb-4">Share of Category</h3>
+                <h3 class="text-sm font-semibold text-primary mb-4">Share of Category</h3>
                 <div class="relative" style="height:280px">
                   <canvas id="chart-facing-soc"></canvas>
                 </div>
               </div>
               <div class="chart-container">
-                <h3 class="text-sm font-semibold text-white/90 mb-4">Velocity Benchmarking</h3>
+                <h3 class="text-sm font-semibold text-primary mb-4">Velocity Benchmarking</h3>
                 <div class="relative" style="height:280px">
                   <canvas id="chart-facing-velocity"></canvas>
                 </div>
@@ -1771,7 +1697,7 @@
 
             <!-- Store Gap Analysis Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="facingReport.store_gap_analysis && facingReport.store_gap_analysis.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Store Gap Analysis</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Store Gap Analysis</h3>
               <table class="data-table">
                 <thead>
                   <tr>
@@ -1796,7 +1722,7 @@
 
             <!-- Top Products (Facing) -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="facingReport.top_products && facingReport.top_products.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Top Products</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Top Products</h3>
               <table class="data-table">
                 <thead>
                   <tr>
@@ -1817,7 +1743,7 @@
                       <td class="text-right">
                         <span :class="(p.margin ?? 0) >= 50 ? 'text-success font-semibold' :
                                        (p.margin ?? 0) >= 40 ? 'font-semibold' : 'text-destructive font-semibold'"
-                              :style="(p.margin ?? 0) >= 40 && (p.margin ?? 0) < 50 ? 'color:#FBBF24' : ''"
+                              :style="(p.margin ?? 0) >= 40 && (p.margin ?? 0) < 50 ? 'color:#B8860B' : ''"
                               x-text="fmtPct(p.margin)"></span>
                       </td>
                     </tr>
@@ -1828,7 +1754,7 @@
 
             <!-- SKU Expansion Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="facingReport.sku_expansion && facingReport.sku_expansion.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-4">SKU Expansion Opportunities</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">SKU Expansion Opportunities</h3>
               <table class="data-table">
                 <thead>
                   <tr>
@@ -1855,7 +1781,7 @@
 
             <!-- Pricing Consistency Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="facingReport.pricing_consistency && facingReport.pricing_consistency.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Pricing Consistency</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Pricing Consistency</h3>
               <table class="data-table">
                 <thead>
                   <tr>
@@ -1869,7 +1795,7 @@
                 </thead>
                 <tbody>
                   <template x-for="(p, idx) in (facingReport.pricing_consistency || [])" :key="idx">
-                    <tr :class="(p.range_pct ?? 0) > 20 ? 'bg-amber-500/10' : ''">
+                    <tr :class="(p.range_pct ?? 0) > 20 ? 'bg-orange-50' : ''">
                       <td class="font-medium max-w-[200px] truncate" x-text="p.product"></td>
                       <td class="text-right" x-text="p.stores"></td>
                       <td class="text-right" x-text="fmtCurrency(p.min)"></td>
@@ -1885,24 +1811,24 @@
 
             <!-- Promotional Effectiveness -->
             <div class="mb-6" x-show="facingReport.promotional_effectiveness" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-3">Promotional Effectiveness</h3>
+              <h3 class="text-sm font-semibold text-primary mb-3">Promotional Effectiveness</h3>
               <!-- Lift KPIs -->
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4" x-show="facingReport.promotional_effectiveness?.lift_kpis">
                 <div class="kpi-card">
                   <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Revenue Lift</div>
-                  <div class="text-xl font-bold text-white/90" x-text="fmtPct(facingReport.promotional_effectiveness?.lift_kpis?.revenue_lift)"></div>
+                  <div class="text-xl font-bold text-primary" x-text="fmtPct(facingReport.promotional_effectiveness?.lift_kpis?.revenue_lift)"></div>
                 </div>
                 <div class="kpi-card">
                   <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Unit Lift</div>
-                  <div class="text-xl font-bold text-white/90" x-text="fmtPct(facingReport.promotional_effectiveness?.lift_kpis?.unit_lift)"></div>
+                  <div class="text-xl font-bold text-primary" x-text="fmtPct(facingReport.promotional_effectiveness?.lift_kpis?.unit_lift)"></div>
                 </div>
                 <div class="kpi-card">
                   <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Promo Margin</div>
-                  <div class="text-xl font-bold text-white/90" x-text="fmtPct(facingReport.promotional_effectiveness?.lift_kpis?.promo_margin)"></div>
+                  <div class="text-xl font-bold text-primary" x-text="fmtPct(facingReport.promotional_effectiveness?.lift_kpis?.promo_margin)"></div>
                 </div>
                 <div class="kpi-card">
                   <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Promo Share</div>
-                  <div class="text-xl font-bold text-white/90" x-text="fmtPct(facingReport.promotional_effectiveness?.lift_kpis?.promo_share)"></div>
+                  <div class="text-xl font-bold text-primary" x-text="fmtPct(facingReport.promotional_effectiveness?.lift_kpis?.promo_share)"></div>
                 </div>
               </div>
               <!-- By Deal Table -->
@@ -1927,7 +1853,7 @@
                         <td class="text-right">
                           <span :class="(d.margin ?? 0) >= 50 ? 'text-success font-semibold' :
                                          (d.margin ?? 0) >= 40 ? 'font-semibold' : 'text-destructive font-semibold'"
-                                :style="(d.margin ?? 0) >= 40 && (d.margin ?? 0) < 50 ? 'color:#FBBF24' : ''"
+                                :style="(d.margin ?? 0) >= 40 && (d.margin ?? 0) < 50 ? 'color:#B8860B' : ''"
                                 x-text="fmtPct(d.margin)"></span>
                         </td>
                       </tr>
@@ -1939,11 +1865,11 @@
 
             <!-- Growth Opportunities -->
             <div class="mb-6" x-show="facingReport.growth_opportunities && facingReport.growth_opportunities.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-3">Growth Opportunities</h3>
+              <h3 class="text-sm font-semibold text-primary mb-3">Growth Opportunities</h3>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <template x-for="(opp, idx) in (facingReport.growth_opportunities || [])" :key="idx">
-                  <div class="p-4 bg-white/[0.04] rounded-lg border border-white/[0.06]">
-                    <div class="font-semibold text-sm text-white/90 mb-1" x-text="opp.title"></div>
+                  <div class="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+                    <div class="font-semibold text-sm text-primary mb-1" x-text="opp.title"></div>
                     <div class="text-xs text-gray-500" x-text="opp.description || opp.detail"></div>
                     <div class="text-xs text-success font-semibold mt-2" x-show="opp.potential" x-text="'Potential: ' + fmtCurrency(opp.potential)"></div>
                   </div>
@@ -1974,7 +1900,7 @@
         <div class="flex rounded-lg border border-muted overflow-hidden">
           <template x-for="tab in ['margin','deals','budtenders','customers','rewards']" :key="tab">
             <button class="px-4 py-1.5 text-xs font-medium capitalize transition-colors"
-                    :class="masterTab === tab ? 'bg-gold text-white' : 'bg-cream text-gray-400 hover:bg-muted'"
+                    :class="masterTab === tab ? 'bg-gold text-white' : 'bg-cream text-gray-600 hover:bg-muted'"
                     @click="masterTab = tab; loadMasterReport()"
                     x-text="tab"></button>
           </template>
@@ -2001,15 +1927,15 @@
             <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Revenue</div>
-                <div class="text-2xl font-bold text-white/90" x-text="fmtCurrency(masterData.kpis?.revenue)"></div>
+                <div class="text-2xl font-bold text-primary" x-text="fmtCurrency(masterData.kpis?.revenue)"></div>
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Net Profit</div>
-                <div class="text-2xl font-bold text-white/90" x-text="fmtCurrency(masterData.kpis?.net_profit)"></div>
+                <div class="text-2xl font-bold text-primary" x-text="fmtCurrency(masterData.kpis?.net_profit)"></div>
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Blended Margin</div>
-                <div class="text-2xl font-bold text-white/90" x-text="fmtPct(masterData.kpis?.blended_margin)"></div>
+                <div class="text-2xl font-bold text-primary" x-text="fmtPct(masterData.kpis?.blended_margin)"></div>
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">FP Margin</div>
@@ -2023,7 +1949,7 @@
 
             <!-- By Store Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="masterData.by_store && masterData.by_store.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Margin by Store</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Margin by Store</h3>
               <table class="data-table">
                 <thead>
                   <tr>
@@ -2049,7 +1975,7 @@
                       <td class="text-right">
                         <span :class="(s.blended ?? 0) >= 50 ? 'text-success font-semibold' :
                                        (s.blended ?? 0) >= 40 ? 'font-semibold' : 'text-destructive font-semibold'"
-                              :style="(s.blended ?? 0) >= 40 && (s.blended ?? 0) < 50 ? 'color:#FBBF24' : ''"
+                              :style="(s.blended ?? 0) >= 40 && (s.blended ?? 0) < 50 ? 'color:#B8860B' : ''"
                               x-text="fmtPct(s.blended)"></span>
                       </td>
                       <td class="text-right" x-text="fmtCurrency(s.profit)"></td>
@@ -2061,7 +1987,7 @@
 
             <!-- By Category Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="masterData.by_category && masterData.by_category.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Margin by Category</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Margin by Category</h3>
               <table class="data-table">
                 <thead>
                   <tr>
@@ -2087,7 +2013,7 @@
                       <td class="text-right">
                         <span :class="(c.blended ?? 0) >= 50 ? 'text-success font-semibold' :
                                        (c.blended ?? 0) >= 40 ? 'font-semibold' : 'text-destructive font-semibold'"
-                              :style="(c.blended ?? 0) >= 40 && (c.blended ?? 0) < 50 ? 'color:#FBBF24' : ''"
+                              :style="(c.blended ?? 0) >= 40 && (c.blended ?? 0) < 50 ? 'color:#B8860B' : ''"
                               x-text="fmtPct(c.blended)"></span>
                       </td>
                       <td class="text-right" x-text="fmtCurrency(c.profit)"></td>
@@ -2099,7 +2025,7 @@
 
             <!-- Top 30 Brands Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="masterData.top_brands && masterData.top_brands.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Top 30 Brands</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Top 30 Brands</h3>
               <table class="data-table">
                 <thead>
                   <tr>
@@ -2132,7 +2058,7 @@
                       <td class="text-right">
                         <span :class="(b.blended ?? 0) >= 50 ? 'text-success font-semibold' :
                                        (b.blended ?? 0) >= 40 ? 'font-semibold' : 'text-destructive font-semibold'"
-                              :style="(b.blended ?? 0) >= 40 && (b.blended ?? 0) < 50 ? 'color:#FBBF24' : ''"
+                              :style="(b.blended ?? 0) >= 40 && (b.blended ?? 0) < 50 ? 'color:#B8860B' : ''"
                               x-text="fmtPct(b.blended)"></span>
                       </td>
                       <td class="text-right" x-text="fmtCurrency(b.profit)"></td>
@@ -2151,7 +2077,7 @@
           <div>
             <!-- Deal Types Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="masterData.deal_types && masterData.deal_types.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Deal Types</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Deal Types</h3>
               <table class="data-table">
                 <thead>
                   <tr>
@@ -2177,7 +2103,7 @@
                       <td class="text-right">
                         <span :class="(d.margin ?? 0) >= 50 ? 'text-success font-semibold' :
                                        (d.margin ?? 0) >= 40 ? 'font-semibold' : 'text-destructive font-semibold'"
-                              :style="(d.margin ?? 0) >= 40 && (d.margin ?? 0) < 50 ? 'color:#FBBF24' : ''"
+                              :style="(d.margin ?? 0) >= 40 && (d.margin ?? 0) < 50 ? 'color:#B8860B' : ''"
                               x-text="fmtPct(d.margin)"></span>
                       </td>
                       <td class="text-right" x-text="fmtCurrency(d.profit)"></td>
@@ -2189,7 +2115,7 @@
 
             <!-- Top 50 Deals Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="masterData.top_deals && masterData.top_deals.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Top 50 Deals</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Top 50 Deals</h3>
               <table class="data-table">
                 <thead>
                   <tr>
@@ -2210,7 +2136,7 @@
                       <td class="text-right">
                         <span :class="(d.margin ?? 0) >= 50 ? 'text-success font-semibold' :
                                        (d.margin ?? 0) >= 40 ? 'font-semibold' : 'text-destructive font-semibold'"
-                              :style="(d.margin ?? 0) >= 40 && (d.margin ?? 0) < 50 ? 'color:#FBBF24' : ''"
+                              :style="(d.margin ?? 0) >= 40 && (d.margin ?? 0) < 50 ? 'color:#B8860B' : ''"
                               x-text="fmtPct(d.margin)"></span>
                       </td>
                     </tr>
@@ -2230,11 +2156,11 @@
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Total Budtenders</div>
-                <div class="text-2xl font-bold text-white/90" x-text="fmtN(masterData.kpis?.total_budtenders)"></div>
+                <div class="text-2xl font-bold text-primary" x-text="fmtN(masterData.kpis?.total_budtenders)"></div>
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Avg Sales Score</div>
-                <div class="text-2xl font-bold text-white/90" x-text="masterData.kpis?.avg_sales_score?.toFixed(1) || '-'"></div>
+                <div class="text-2xl font-bold text-primary" x-text="masterData.kpis?.avg_sales_score?.toFixed(1) || '-'"></div>
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Top Performers</div>
@@ -2248,7 +2174,7 @@
 
             <!-- Rankings Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="masterData.rankings && masterData.rankings.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Budtender Rankings</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Budtender Rankings</h3>
               <table class="data-table">
                 <thead>
                   <tr>
@@ -2271,14 +2197,14 @@
                       <td class="text-right">
                         <span class="font-semibold"
                               :class="(b.score ?? 0) >= 80 ? 'text-success' :
-                                      (b.score ?? 0) >= 60 ? 'text-white/90' : 'text-destructive'"
+                                      (b.score ?? 0) >= 60 ? 'text-primary' : 'text-destructive'"
                               x-text="b.score?.toFixed(1)"></span>
                       </td>
                       <td class="text-center">
                         <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full"
                               :class="b.tier === 'Elite' ? 'bg-success/10 text-success' :
                                       b.tier === 'Strong' ? 'bg-gold/10 text-gold' :
-                                      b.tier === 'Average' ? 'bg-white/[0.06] text-white/50' : 'bg-destructive/10 text-destructive'"
+                                      b.tier === 'Average' ? 'bg-gray-100 text-gray-500' : 'bg-destructive/10 text-destructive'"
                               x-text="b.tier"></span>
                       </td>
                       <td class="text-right" x-text="fmtN(b.transactions)"></td>
@@ -2303,15 +2229,15 @@
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Total Customers</div>
-                <div class="text-2xl font-bold text-white/90" x-text="fmtN(masterData.kpis?.total_customers)"></div>
+                <div class="text-2xl font-bold text-primary" x-text="fmtN(masterData.kpis?.total_customers)"></div>
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Avg Spend</div>
-                <div class="text-2xl font-bold text-white/90" x-text="fmtCurrency(masterData.kpis?.avg_spend)"></div>
+                <div class="text-2xl font-bold text-primary" x-text="fmtCurrency(masterData.kpis?.avg_spend)"></div>
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Total Revenue</div>
-                <div class="text-2xl font-bold text-white/90" x-text="fmtCurrency(masterData.kpis?.total_revenue)"></div>
+                <div class="text-2xl font-bold text-primary" x-text="fmtCurrency(masterData.kpis?.total_revenue)"></div>
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-destructive-400 mb-1">Discount Rate</div>
@@ -2321,7 +2247,7 @@
 
             <!-- Segments Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="masterData.segments && masterData.segments.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Customer Segments</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Customer Segments</h3>
               <table class="data-table">
                 <thead>
                   <tr>
@@ -2352,7 +2278,7 @@
 
             <!-- Top 50 Customers Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="masterData.top_customers && masterData.top_customers.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Top 50 Customers</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Top 50 Customers</h3>
               <table class="data-table">
                 <thead>
                   <tr>
@@ -2376,7 +2302,7 @@
                         <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full"
                               :class="c.segment === 'VIP' ? 'bg-gold/10 text-gold' :
                                       c.segment === 'Regular' ? 'bg-success/10 text-success' :
-                                      c.segment === 'Occasional' ? 'bg-white/[0.06] text-white/50' : 'bg-destructive/10 text-destructive'"
+                                      c.segment === 'Occasional' ? 'bg-gray-100 text-gray-500' : 'bg-destructive/10 text-destructive'"
                               x-text="c.segment"></span>
                       </td>
                       <td class="text-right" x-text="fmtCurrency(c.spend)"></td>
@@ -2400,7 +2326,7 @@
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Total Redemptions</div>
-                <div class="text-2xl font-bold text-white/90" x-text="fmtN(masterData.kpis?.total_redemptions)"></div>
+                <div class="text-2xl font-bold text-primary" x-text="fmtN(masterData.kpis?.total_redemptions)"></div>
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Net Cost</div>
@@ -2408,17 +2334,17 @@
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Unique Rewards</div>
-                <div class="text-2xl font-bold text-white/90" x-text="fmtN(masterData.kpis?.unique_rewards)"></div>
+                <div class="text-2xl font-bold text-primary" x-text="fmtN(masterData.kpis?.unique_rewards)"></div>
               </div>
               <div class="kpi-card">
                 <div class="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Markout Employees</div>
-                <div class="text-2xl font-bold text-white/90" x-text="fmtN(masterData.kpis?.markout_employees)"></div>
+                <div class="text-2xl font-bold text-primary" x-text="fmtN(masterData.kpis?.markout_employees)"></div>
               </div>
             </div>
 
             <!-- All Rewards Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="masterData.all_rewards && masterData.all_rewards.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-4">All Rewards</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">All Rewards</h3>
               <table class="data-table">
                 <thead>
                   <tr>
@@ -2449,7 +2375,7 @@
 
             <!-- Markouts by Employee Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="masterData.markouts_by_employee && masterData.markouts_by_employee.length > 0" x-cloak>
-              <h3 class="text-sm font-semibold text-white/90 mb-4">Markouts by Employee</h3>
+              <h3 class="text-sm font-semibold text-primary mb-4">Markouts by Employee</h3>
               <table class="data-table">
                 <thead>
                   <tr>
@@ -2503,13 +2429,13 @@
 
         <!-- Upload Panel -->
         <div class="chart-container">
-          <h3 class="text-sm font-semibold text-white/90 mb-4">Upload CSV Files</h3>
+          <h3 class="text-sm font-semibold text-primary mb-4">Upload CSV Files</h3>
           <!-- Drag & Drop Area -->
           <div class="border-2 border-dashed border-muted rounded-lg p-8 text-center transition-colors hover:border-gold"
                @dragover.prevent="$el.classList.add('border-gold','bg-gold/5')"
                @dragleave.prevent="$el.classList.remove('border-gold','bg-gold/5')"
                @drop.prevent="$el.classList.remove('border-gold','bg-gold/5'); handleFileDrop($event)">
-            <svg class="mx-auto mb-3" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#06B6D4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <svg class="mx-auto mb-3" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#C9A962" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
               <polyline points="17 8 12 3 7 8"/>
               <line x1="12" y1="3" x2="12" y2="15"/>
@@ -2538,7 +2464,7 @@
         <!-- Status Panel -->
         <div class="chart-container">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-semibold text-white/90">Data Status</h3>
+            <h3 class="text-sm font-semibold text-primary">Data Status</h3>
             <button @click="reloadData()"
                     class="px-3 py-1.5 text-xs font-medium bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-1">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2551,23 +2477,23 @@
           <div class="space-y-3" x-show="health">
             <div class="flex justify-between items-center py-2 border-b border-muted">
               <span class="text-sm text-gray-500">Total Rows</span>
-              <span class="text-sm font-semibold text-white/90" x-text="health ? fmtN(health.rows) : '-'"></span>
+              <span class="text-sm font-semibold text-primary" x-text="health ? fmtN(health.rows) : '-'"></span>
             </div>
             <div class="flex justify-between items-center py-2 border-b border-muted">
               <span class="text-sm text-gray-500">Regular Rows</span>
-              <span class="text-sm font-semibold text-white/90" x-text="health ? fmtN(health.regular_rows) : '-'"></span>
+              <span class="text-sm font-semibold text-primary" x-text="health ? fmtN(health.regular_rows) : '-'"></span>
             </div>
             <div class="flex justify-between items-center py-2 border-b border-muted">
               <span class="text-sm text-gray-500">Stores</span>
-              <span class="text-sm font-semibold text-white/90" x-text="health?.stores || '-'"></span>
+              <span class="text-sm font-semibold text-primary" x-text="health?.stores || '-'"></span>
             </div>
             <div class="flex justify-between items-center py-2 border-b border-muted">
               <span class="text-sm text-gray-500">Brands</span>
-              <span class="text-sm font-semibold text-white/90" x-text="health?.brands || '-'"></span>
+              <span class="text-sm font-semibold text-primary" x-text="health?.brands || '-'"></span>
             </div>
             <div class="flex justify-between items-center py-2">
               <span class="text-sm text-gray-500">Periods</span>
-              <span class="text-sm font-semibold text-white/90" x-text="health?.periods || '-'"></span>
+              <span class="text-sm font-semibold text-primary" x-text="health?.periods || '-'"></span>
             </div>
           </div>
         </div>
@@ -2575,7 +2501,7 @@
 
       <!-- File List Table -->
       <div class="chart-container mb-6 overflow-x-auto" x-show="dataFiles && dataFiles.length > 0" x-cloak>
-        <h3 class="text-sm font-semibold text-white/90 mb-4">Loaded Files</h3>
+        <h3 class="text-sm font-semibold text-primary mb-4">Loaded Files</h3>
         <table class="data-table">
           <thead>
             <tr>
@@ -2623,17 +2549,7 @@
 </main>
 
 <script>
-const COLORS = ['#06B6D4', '#A855F7', '#34D399', '#F472B6', '#FBBF24', '#818CF8', '#FB923C', '#38BDF8', '#F87171', '#4ADE80'];
-
-// Chart.js dark theme defaults
-Chart.defaults.color = 'rgba(255,255,255,0.5)';
-Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
-Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(13,11,20,0.95)';
-Chart.defaults.plugins.tooltip.titleColor = 'rgba(255,255,255,0.9)';
-Chart.defaults.plugins.tooltip.bodyColor = 'rgba(255,255,255,0.7)';
-Chart.defaults.plugins.tooltip.borderColor = 'rgba(255,255,255,0.1)';
-Chart.defaults.plugins.tooltip.borderWidth = 1;
-Chart.defaults.plugins.legend.labels.color = 'rgba(255,255,255,0.6)';
+const COLORS = ['#2D3E3F', '#C9A962', '#5C7A5C', '#C67B5C', '#7B9FA0', '#D4BD82', '#8B6F47', '#4A6B6C', '#B8956A', '#6B8E8F'];
 const MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -3088,8 +3004,8 @@ function dashboard() {
           data: {
             labels: d.monthly_trend.map(m => m.label),
             datasets: [
-              { label: 'Revenue', data: d.monthly_trend.map(m => m.revenue), backgroundColor: '#06B6D4', borderRadius: 4, order: 2 },
-              { label: 'Margin %', data: d.monthly_trend.map(m => m.margin), type: 'line', borderColor: '#A855F7', backgroundColor: 'transparent', yAxisID: 'y1', tension: 0.3, pointRadius: 3, order: 1 },
+              { label: 'Revenue', data: d.monthly_trend.map(m => m.revenue), backgroundColor: '#2D3E3F', borderRadius: 4, order: 2 },
+              { label: 'Margin %', data: d.monthly_trend.map(m => m.margin), type: 'line', borderColor: '#C9A962', backgroundColor: 'transparent', yAxisID: 'y1', tension: 0.3, pointRadius: 3, order: 1 },
             ]
           },
           options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}}},
@@ -3101,7 +3017,7 @@ function dashboard() {
       if (d.top_categories?.length) {
         this._c('chart-exec-categories', {
           type: 'bar',
-          data: { labels: d.top_categories.map(c=>c.name), datasets: [{label:'Revenue',data:d.top_categories.map(c=>c.revenue),backgroundColor:'#06B6D4',borderRadius:4}] },
+          data: { labels: d.top_categories.map(c=>c.name), datasets: [{label:'Revenue',data:d.top_categories.map(c=>c.revenue),backgroundColor:'#2D3E3F',borderRadius:4}] },
           options: { indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{ticks:{callback:v=>'$'+(v>=1e6?(v/1e6).toFixed(1)+'M':(v/1e3).toFixed(0)+'K')}}} }
         });
       }
@@ -3109,7 +3025,7 @@ function dashboard() {
       if (d.top_stores?.length) {
         this._c('chart-exec-stores', {
           type: 'bar',
-          data: { labels: d.top_stores.map(s=>s.name.replace('Thrive Cannabis ','').replace('Thrive ','')), datasets: [{label:'Revenue',data:d.top_stores.map(s=>s.revenue),backgroundColor:'#A855F7',borderRadius:4}] },
+          data: { labels: d.top_stores.map(s=>s.name.replace('Thrive Cannabis ','').replace('Thrive ','')), datasets: [{label:'Revenue',data:d.top_stores.map(s=>s.revenue),backgroundColor:'#C9A962',borderRadius:4}] },
           options: { indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{ticks:{callback:v=>'$'+(v>=1e6?(v/1e6).toFixed(1)+'M':(v/1e3).toFixed(0)+'K')}}} }
         });
       }
@@ -3120,14 +3036,14 @@ function dashboard() {
       const m = this.momData.months || [];
       this._c('chart-mom-revenue', {
         type: 'bar',
-        data: { labels: m.map(r=>r.label), datasets: [{label:'Revenue',data:m.map(r=>r.revenue),backgroundColor:'#06B6D4',borderRadius:4}] },
+        data: { labels: m.map(r=>r.label), datasets: [{label:'Revenue',data:m.map(r=>r.revenue),backgroundColor:'#2D3E3F',borderRadius:4}] },
         options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{ticks:{callback:v=>'$'+(v>=1e6?(v/1e6).toFixed(1)+'M':(v/1e3).toFixed(0)+'K')}}} }
       });
       this._c('chart-mom-combo', {
         type: 'bar',
         data: { labels: m.map(r=>r.label), datasets: [
-          {label:'Profit',data:m.map(r=>r.profit),backgroundColor:'#34D399',borderRadius:4,order:2},
-          {label:'Margin %',data:m.map(r=>r.margin),type:'line',borderColor:'#A855F7',backgroundColor:'transparent',yAxisID:'y1',tension:0.3,pointRadius:3,order:1}
+          {label:'Profit',data:m.map(r=>r.profit),backgroundColor:'#5C7A5C',borderRadius:4,order:2},
+          {label:'Margin %',data:m.map(r=>r.margin),type:'line',borderColor:'#C9A962',backgroundColor:'transparent',yAxisID:'y1',tension:0.3,pointRadius:3,order:1}
         ]},
         options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{boxWidth:12}}},
           scales:{y:{ticks:{callback:v=>'$'+(v>=1e6?(v/1e6).toFixed(1)+'M':(v/1e3).toFixed(0)+'K')}},y1:{position:'right',ticks:{callback:v=>v+'%'},grid:{display:false}}}
@@ -3142,7 +3058,7 @@ function dashboard() {
       this._c('chart-store-revenue', {
         type: 'bar',
         data: { labels: s.map(x=>x.name.replace('Thrive Cannabis ','').replace('Thrive ','')),
-          datasets: [{label:'Revenue',data:s.map(x=>x.revenue),backgroundColor:s.map(x=>x.margin>=avg?'#34D399':'#F87171'),borderRadius:4}] },
+          datasets: [{label:'Revenue',data:s.map(x=>x.revenue),backgroundColor:s.map(x=>x.margin>=avg?'#5C7A5C':'#C67B5C'),borderRadius:4}] },
         options: { indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{ticks:{callback:v=>'$'+(v>=1e6?(v/1e6).toFixed(1)+'M':(v/1e3).toFixed(0)+'K')}}} }
       });
     },
@@ -3153,8 +3069,8 @@ function dashboard() {
       this._c('chart-yearend-trend', {
         type: 'bar',
         data: { labels: m.map(r=>r.label), datasets: [
-          {label:'Revenue',data:m.map(r=>r.revenue),backgroundColor:'#06B6D4',borderRadius:4,order:2},
-          {label:'Margin %',data:m.map(r=>r.margin),type:'line',borderColor:'#A855F7',backgroundColor:'transparent',yAxisID:'y1',tension:0.3,pointRadius:3,order:1}
+          {label:'Revenue',data:m.map(r=>r.revenue),backgroundColor:'#2D3E3F',borderRadius:4,order:2},
+          {label:'Margin %',data:m.map(r=>r.margin),type:'line',borderColor:'#C9A962',backgroundColor:'transparent',yAxisID:'y1',tension:0.3,pointRadius:3,order:1}
         ]},
         options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{boxWidth:12}}},
           scales:{y:{ticks:{callback:v=>'$'+(v>=1e6?(v/1e6).toFixed(1)+'M':(v/1e3).toFixed(0)+'K')}},y1:{position:'right',ticks:{callback:v=>v+'%'},grid:{display:false}}}
@@ -3168,8 +3084,8 @@ function dashboard() {
       if (d.trend?.length) {
         this._c('chart-brand-trend', {
           type:'line', data:{labels:d.trend.map(t=>t.period),datasets:[
-            {label:'Revenue',data:d.trend.map(t=>t.revenue),borderColor:'#06B6D4',backgroundColor:'rgba(6,182,212,0.15)',fill:true,tension:0.3,pointRadius:3},
-            {label:'Profit',data:d.trend.map(t=>t.profit),borderColor:'#A855F7',borderDash:[5,5],tension:0.3,pointRadius:2}
+            {label:'Revenue',data:d.trend.map(t=>t.revenue),borderColor:'#2D3E3F',backgroundColor:'rgba(45,62,63,0.08)',fill:true,tension:0.3,pointRadius:3},
+            {label:'Profit',data:d.trend.map(t=>t.profit),borderColor:'#C9A962',borderDash:[5,5],tension:0.3,pointRadius:2}
           ]},
           options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12}}},scales:{y:{ticks:{callback:v=>'$'+(v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v)}}}}
         });
@@ -3178,7 +3094,7 @@ function dashboard() {
         this._c('chart-brand-categories', {type:'doughnut',data:{labels:d.category_breakdown.map(c=>c.category_clean),datasets:[{data:d.category_breakdown.map(c=>c.revenue),backgroundColor:COLORS}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12}}}}});
       }
       if (d.share_of_category?.length) {
-        this._c('chart-brand-soc', {type:'bar',data:{labels:d.share_of_category.map(s=>s.category),datasets:[{label:'Revenue Share %',data:d.share_of_category.map(s=>s.revenue_share_pct),backgroundColor:'#06B6D4',borderRadius:6},{label:'Units Share %',data:d.share_of_category.map(s=>s.units_share_pct),backgroundColor:'#A855F7',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12}}},scales:{y:{ticks:{callback:v=>v+'%'}}}}});
+        this._c('chart-brand-soc', {type:'bar',data:{labels:d.share_of_category.map(s=>s.category),datasets:[{label:'Revenue Share %',data:d.share_of_category.map(s=>s.revenue_share_pct),backgroundColor:'#2D3E3F',borderRadius:6},{label:'Units Share %',data:d.share_of_category.map(s=>s.units_share_pct),backgroundColor:'#C9A962',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12}}},scales:{y:{ticks:{callback:v=>v+'%'}}}}});
       }
       if (d.discount_depth?.length) {
         this._c('chart-brand-depth', {type:'bar',data:{labels:d.discount_depth.map(x=>x.tier),datasets:[{label:'% of Transactions',data:d.discount_depth.map(x=>x.pct_of_transactions),backgroundColor:COLORS,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+'%'}}}}});
@@ -3189,10 +3105,10 @@ function dashboard() {
       if (!this.facingReport) return;
       const d = this.facingReport;
       if (d.share_of_category?.length) {
-        this._c('chart-facing-soc', {type:'bar',data:{labels:d.share_of_category.map(s=>s.category),datasets:[{label:'Revenue Share %',data:d.share_of_category.map(s=>s.revenue_share_pct),backgroundColor:'#06B6D4',borderRadius:6},{label:'Units Share %',data:d.share_of_category.map(s=>s.units_share_pct),backgroundColor:'#A855F7',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12}}},scales:{y:{ticks:{callback:v=>v+'%'}}}}});
+        this._c('chart-facing-soc', {type:'bar',data:{labels:d.share_of_category.map(s=>s.category),datasets:[{label:'Revenue Share %',data:d.share_of_category.map(s=>s.revenue_share_pct),backgroundColor:'#2D3E3F',borderRadius:6},{label:'Units Share %',data:d.share_of_category.map(s=>s.units_share_pct),backgroundColor:'#C9A962',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12}}},scales:{y:{ticks:{callback:v=>v+'%'}}}}});
       }
       if (d.velocity_by_category?.length) {
-        this._c('chart-facing-velocity', {type:'bar',data:{labels:d.velocity_by_category.map(v=>v.category),datasets:[{label:'Brand Units/Day',data:d.velocity_by_category.map(v=>v.brand_units_per_day),backgroundColor:'#06B6D4',borderRadius:4},{label:'Category Avg/Day',data:d.velocity_by_category.map(v=>v.category_avg_units_per_day),backgroundColor:'#A855F7',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12}}}}});
+        this._c('chart-facing-velocity', {type:'bar',data:{labels:d.velocity_by_category.map(v=>v.category),datasets:[{label:'Brand Units/Day',data:d.velocity_by_category.map(v=>v.brand_units_per_day),backgroundColor:'#2D3E3F',borderRadius:4},{label:'Category Avg/Day',data:d.velocity_by_category.map(v=>v.category_avg_units_per_day),backgroundColor:'#C9A962',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:12}}}}});
       }
     },
 
@@ -3298,7 +3214,7 @@ function dashboard() {
     marginClass(m) {
       if (m == null || isNaN(m)) return '';
       if (m >= 50) return 'text-success font-semibold';
-      if (m >= 40) return 'font-semibold' + ' ' + 'text-[#FBBF24]';
+      if (m >= 40) return 'font-semibold' + ' ' + 'text-[#B8860B]';
       return 'text-destructive font-semibold';
     },
     formatSize(bytes) {

@@ -198,9 +198,11 @@ def load_all_csvs(
             if df is None:
                 df = chunk.drop_duplicates(subset=_DEDUP_COLS, keep="first")
                 del chunk
-                # Convert object columns to category to keep memory low
+                # Convert string columns to category to keep memory low
+                # (skip sale_date — contains date objects, not strings)
                 for col in df.select_dtypes(include=["object"]).columns:
-                    df[col] = df[col].astype("category")
+                    if col != "sale_date":
+                        df[col] = df[col].astype("category")
                 print(f"  [{file_count}/{len(files)}] {f.name}: {rows:,} rows → {len(df):,} unique")
             else:
                 df = pd.concat([df, chunk], ignore_index=True)
@@ -211,9 +213,11 @@ def load_all_csvs(
                 df = df.drop_duplicates(subset=_DEDUP_COLS, keep="first")
                 dropped = pre - len(df)
 
-                # Convert object columns to category to keep memory low
+                # Convert string columns to category to keep memory low
+                # (skip sale_date — contains date objects, not strings)
                 for col in df.select_dtypes(include=["object"]).columns:
-                    df[col] = df[col].astype("category")
+                    if col != "sale_date":
+                        df[col] = df[col].astype("category")
 
                 gc.collect()
                 print(f"  [{file_count}/{len(files)}] {f.name}: +{rows:,}, dedup -{dropped:,} → {len(df):,} rows")

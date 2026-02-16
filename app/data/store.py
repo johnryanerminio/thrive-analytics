@@ -49,7 +49,8 @@ class DataStore:
             cat_cols = [
                 "brand_clean", "store_clean", "category_clean", "product",
                 "transaction_type", "deal_type", "order_type", "year_month",
-                "sold_by", "store", "deals_used",
+                # Raw string columns still needed by reports
+                "sold_by", "store", "brand", "category", "deals_used",
                 # High-cardinality but still fewer unique than rows → big savings
                 "customer_id", "customer_name", "receipt_id",
             ]

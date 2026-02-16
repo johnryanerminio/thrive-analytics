@@ -605,11 +605,26 @@ def year_end_summary(store: DataStore, year: int) -> dict:
         prev_rev = float(prev_regular["actual_revenue"].sum())
         prev_profit = float(prev_regular["net_profit"].sum())
         prev_units = int(prev_regular["quantity"].sum())
+        prev_margin = round(safe_divide(prev_profit, prev_rev) * 100, 1)
+        rev_per_unit = safe_divide(revenue, units)
+        prev_rev_per_unit = safe_divide(prev_rev, prev_units)
+        # What profit would have been at last year's margin on this year's revenue
+        profit_at_old_margin = revenue * (prev_margin / 100)
+        margin_impact = profit - profit_at_old_margin
         yoy = {
             "prev_year": year - 1,
             "revenue_change_pct": pct_change(revenue, prev_rev),
+            "prev_revenue": prev_rev,
             "profit_change_pct": pct_change(profit, prev_profit),
-            "units_change_pct": pct_change(units, prev_units),
+            "prev_profit": prev_profit,
+            "margin_current": round(margin, 1),
+            "margin_prev": prev_margin,
+            "margin_change_pts": round(margin - prev_margin, 1),
+            "margin_impact_dollars": round(margin_impact, 0),
+            "profit_at_old_margin": round(profit_at_old_margin, 0),
+            "rev_per_unit_change_pct": pct_change(rev_per_unit, prev_rev_per_unit),
+            "rev_per_unit_current": round(rev_per_unit, 2),
+            "rev_per_unit_prev": round(prev_rev_per_unit, 2),
         }
 
     return sanitize_for_json({

@@ -132,8 +132,8 @@ def brand_facing_recommendations(
                 })
 
     # SKU expansion opportunities (products at some stores but not all)
-    brand_store_products = brand_df.groupby(["store_clean", "product"]).size().reset_index(name="count")
-    product_store_count = brand_store_products.groupby("product")["store_clean"].nunique().reset_index()
+    brand_store_products = brand_df.groupby(["store_clean", "product"], observed=True).size().reset_index(name="count")
+    product_store_count = brand_store_products.groupby("product", observed=True)["store_clean"].nunique().reset_index()
     product_store_count.columns = ["product", "store_count"]
     partial = product_store_count[
         (product_store_count["store_count"] < len(brand_stores)) &

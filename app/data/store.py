@@ -58,6 +58,16 @@ class DataStore:
                 if col in self.df.columns:
                     self.df[col] = self.df[col].astype("category")
 
+            # Drop excluded stores at load time so they never appear in groupby
+            from app.config import EXCLUDED_STORES
+            if EXCLUDED_STORES and "store_clean" in self.df.columns:
+                before = len(self.df)
+                self.df = self.df[~self.df["store_clean"].isin(EXCLUDED_STORES)]
+                self.df["store_clean"] = self.df["store_clean"].cat.remove_unused_categories()
+                dropped = before - len(self.df)
+                if dropped:
+                    print(f"  Excluded {dropped:,} rows from {EXCLUDED_STORES}")
+
             # Convert sale_date from Python date objects (~56 bytes each) to
             # datetime64 (8 bytes each) — saves ~230 MB at 4.9M rows
             if "sale_date" in self.df.columns:
@@ -130,7 +140,9 @@ class DataStore:
         return df
 
     def get_sales(self, period: PeriodFilter | None = None) -> pd.DataFrame:
-        """All sales (including non-regular) for a period."""
+        """All sales (including non-regular) for a period.
+        Excluded stores are already removed at load time.
+        """
         df = self.df
         if period:
             df = self._apply_period(df, period)
@@ -138,6 +150,7 @@ class DataStore:
 
     def get_regular(self, period: PeriodFilter | None = None) -> pd.DataFrame:
         """Regular sales only (excludes rewards, markouts, testers, comps).
+        Excluded stores are already removed at load time.
 
         Returns a filtered view (not a copy) for performance.
         Callers that need to mutate should call .copy() themselves.
@@ -157,7 +170,7 @@ class DataStore:
     # ------------------------------------------------------------------
 
     def stores(self) -> list[str]:
-        """Unique store names (cleaned)."""
+        """Unique store names (cleaned). Excluded stores removed at load time."""
         if self.df.empty:
             return []
         return sorted(self.df["store_clean"].dropna().unique().tolist())

@@ -283,7 +283,7 @@ def executive_summary(store: DataStore, period: PeriodFilter | None) -> dict:
     mix = _sales_mix(regular)
 
     # Top categories
-    cat_agg = regular.groupby("category_clean").agg(
+    cat_agg = regular.groupby("category_clean", observed=True).agg(
         revenue=("actual_revenue", "sum"),
         profit=("net_profit", "sum"),
     ).reset_index().sort_values("revenue", ascending=False).head(8)
@@ -297,7 +297,7 @@ def executive_summary(store: DataStore, period: PeriodFilter | None) -> dict:
         })
 
     # Top stores
-    store_agg = regular.groupby("store_clean").agg(
+    store_agg = regular.groupby("store_clean", observed=True).agg(
         revenue=("actual_revenue", "sum"),
         profit=("net_profit", "sum"),
         units=("quantity", "sum"),
@@ -415,9 +415,12 @@ def month_over_month(store: DataStore, period: PeriodFilter | None) -> dict:
                 "y2_profit": d2["profit"] if d2 else None,
                 "y2_margin": round(d2["margin"], 1) if d2 else None,
                 "y2_units": d2["units"] if d2 else None,
+                "y1_full_price_pct": round(d1["full_price_pct"], 1) if d1 else None,
+                "y2_full_price_pct": round(d2["full_price_pct"], 1) if d2 else None,
                 "revenue_change_pct": pct_change(d2["revenue"], d1["revenue"]) if d1 and d2 else None,
                 "profit_change_pct": pct_change(d2["profit"], d1["profit"]) if d1 and d2 else None,
                 "margin_change_pts": round(d2["margin"] - d1["margin"], 1) if d1 and d2 else None,
+                "full_price_change_pts": round(d2["full_price_pct"] - d1["full_price_pct"], 1) if d1 and d2 else None,
             }
             yoy_comparison.append(row)
 
@@ -437,7 +440,6 @@ def month_over_month(store: DataStore, period: PeriodFilter | None) -> dict:
 
 def store_performance(store: DataStore, period: PeriodFilter | None) -> dict:
     """Store-level performance rankings."""
-    from app.config import EXCLUDED_STORES
     regular = store.get_regular(period)
     label = period.label if period else "All Time"
 
@@ -446,7 +448,7 @@ def store_performance(store: DataStore, period: PeriodFilter | None) -> dict:
 
     total_rev = float(regular["actual_revenue"].sum())
 
-    store_agg = regular.groupby("store_clean").agg(
+    store_agg = regular.groupby("store_clean", observed=True).agg(
         revenue=("actual_revenue", "sum"),
         profit=("net_profit", "sum"),
         cost=("cost", "sum"),
@@ -455,10 +457,6 @@ def store_performance(store: DataStore, period: PeriodFilter | None) -> dict:
         customers=("customer_id", "nunique"),
         discounts=("discounts", "sum"),
     ).reset_index().sort_values("revenue", ascending=False)
-
-    # Exclude negligible/test stores
-    if EXCLUDED_STORES:
-        store_agg = store_agg[~store_agg["store_clean"].isin(EXCLUDED_STORES)]
 
     avg_margin = safe_divide(float(regular["net_profit"].sum()), total_rev) * 100
 
@@ -480,8 +478,8 @@ def store_performance(store: DataStore, period: PeriodFilter | None) -> dict:
 
         # Top brand and category for this store
         store_data = regular[regular["store_clean"] == r["store_clean"]]
-        top_brand = store_data.groupby("brand_clean")["actual_revenue"].sum().idxmax() if not store_data.empty else ""
-        top_cat = store_data.groupby("category_clean")["actual_revenue"].sum().idxmax() if not store_data.empty else ""
+        top_brand = store_data.groupby("brand_clean", observed=True)["actual_revenue"].sum().idxmax() if not store_data.empty else ""
+        top_cat = store_data.groupby("category_clean", observed=True)["actual_revenue"].sum().idxmax() if not store_data.empty else ""
 
         stores_list.append({
             "name": r["store_clean"],

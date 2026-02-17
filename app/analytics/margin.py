@@ -137,7 +137,7 @@ def brand_category_breakdown(
     brand_name: str,
 ) -> pd.DataFrame:
     """Per-category breakdown for a brand, including vs-category comparison."""
-    cats = brand_df.groupby("category_clean").agg(
+    cats = brand_df.groupby("category_clean", observed=True).agg(
         units=("quantity", "sum"),
         revenue=("actual_revenue", "sum"),
         cost=("cost", "sum"),

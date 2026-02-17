@@ -53,7 +53,7 @@ def generate_json(store: DataStore, period: PeriodFilter | None = None) -> dict:
     # All rewards summary
     all_rewards = []
     if len(rewards_df) > 0:
-        rsum = rewards_df.groupby("reward_name").agg(
+        rsum = rewards_df.groupby("reward_name", observed=True).agg(
             redemptions=("receipt_id", "count"),
             units=("quantity", "sum"),
             retail_value=("pre_discount_revenue", "sum"),
@@ -70,7 +70,7 @@ def generate_json(store: DataStore, period: PeriodFilter | None = None) -> dict:
     if len(rewards_df) > 0:
         for s in sorted(rewards_df["store_clean"].dropna().unique()):
             sr = rewards_df[rewards_df["store_clean"] == s]
-            ssum = sr.groupby("reward_name").agg(
+            ssum = sr.groupby("reward_name", observed=True).agg(
                 redemptions=("receipt_id", "count"),
                 units=("quantity", "sum"),
                 retail_value=("pre_discount_revenue", "sum"),
@@ -84,15 +84,15 @@ def generate_json(store: DataStore, period: PeriodFilter | None = None) -> dict:
     # Markouts by employee
     markouts_by_employee = []
     if len(markouts_df) > 0:
-        emp_stores = markouts_df.groupby(["customer_name", "store_clean"]).size().reset_index(name="count")
-        primary_store = emp_stores.loc[emp_stores.groupby("customer_name")["count"].idxmax()][["customer_name", "store_clean"]]
+        emp_stores = markouts_df.groupby(["customer_name", "store_clean"], observed=True).size().reset_index(name="count")
+        primary_store = emp_stores.loc[emp_stores.groupby("customer_name", observed=True)["count"].idxmax()][["customer_name", "store_clean"]]
 
-        emp_products = markouts_df.groupby("customer_name")["product"].apply(
+        emp_products = markouts_df.groupby("customer_name", observed=True)["product"].apply(
             lambda x: ", ".join(x.unique()[:3]) + ("..." if len(x.unique()) > 3 else "")
         ).reset_index()
         emp_products.columns = ["customer_name", "products"]
 
-        emp_sum = markouts_df.groupby("customer_name").agg(
+        emp_sum = markouts_df.groupby("customer_name", observed=True).agg(
             redemptions=("receipt_id", "count"),
             units=("quantity", "sum"),
             cost=("cost", "sum"),

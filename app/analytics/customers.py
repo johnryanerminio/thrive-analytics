@@ -18,7 +18,7 @@ def customer_metrics(
     # Filter to regular sales
     regular = sales_df[sales_df["transaction_type"] == "REGULAR"].copy()
 
-    cust = regular.groupby("customer_id").agg(
+    cust = regular.groupby("customer_id", observed=True).agg(
         customer_name=("customer_name", "first"),
         transactions=("receipt_id", "nunique"),
         total_spent=("actual_revenue", "sum"),
@@ -28,8 +28,8 @@ def customer_metrics(
     ).reset_index()
 
     # Average transaction value
-    txn_totals = regular.groupby(["customer_id", "receipt_id"])["actual_revenue"].sum().reset_index()
-    avg_txn = txn_totals.groupby("customer_id")["actual_revenue"].mean().reset_index()
+    txn_totals = regular.groupby(["customer_id", "receipt_id"], observed=True)["actual_revenue"].sum().reset_index()
+    avg_txn = txn_totals.groupby("customer_id", observed=True)["actual_revenue"].mean().reset_index()
     avg_txn.columns = ["customer_id", "avg_transaction"]
     cust = cust.merge(avg_txn, on="customer_id", how="left")
 
@@ -82,7 +82,7 @@ def customer_summary(sales_df: pd.DataFrame, cust_attr_df: pd.DataFrame | None =
 def segment_summary(cust_df: pd.DataFrame, total_revenue: float) -> list[dict]:
     """Revenue and customer counts by segment."""
     total_cust = len(cust_df)
-    seg = cust_df.groupby("segment").agg(
+    seg = cust_df.groupby("segment", observed=True).agg(
         customers=("customer_id", "count"),
         total_revenue=("total_spent", "sum"),
         total_discounts=("total_discounts", "sum"),

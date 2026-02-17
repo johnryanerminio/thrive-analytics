@@ -57,7 +57,7 @@ def cmd_brand(args):
 
     if args.list:
         regular = store.get_regular(period)
-        brand_rev = regular.groupby("brand_clean")["actual_revenue"].sum().sort_values(ascending=False)
+        brand_rev = regular.groupby("brand_clean", observed=True)["actual_revenue"].sum().sort_values(ascending=False)
         print(f"\nBRANDS ({len(brand_rev)}):\n")
         for i, (b, rev) in enumerate(brand_rev.items(), 1):
             print(f"{i:<4}{b[:40]:<42}${rev:>12,.2f}")

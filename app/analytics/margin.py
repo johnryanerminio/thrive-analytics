@@ -21,7 +21,7 @@ def company_margin_totals(regular_df: pd.DataFrame) -> dict:
                                 "pct_full_price", "pct_discounted",
                                 "full_price_margin", "discounted_margin", "blended_margin"]}
 
-    g = regular_df.groupby("has_discount").agg(
+    g = regular_df.groupby("has_discount", observed=True).agg(
         quantity=("quantity", "sum"),
         revenue=("actual_revenue", "sum"),
         cost=("cost", "sum"),
@@ -63,7 +63,7 @@ def margin_by_group(regular_df: pd.DataFrame, group_col: str) -> pd.DataFrame:
         return pd.DataFrame(columns=["name"])
 
     # Single groupby pass on [group_col, has_discount]
-    g = regular_df.groupby([group_col, "has_discount"]).agg(
+    g = regular_df.groupby([group_col, "has_discount"], observed=True).agg(
         units=("quantity", "sum"),
         revenue=("actual_revenue", "sum"),
         cost=("cost", "sum"),

@@ -38,7 +38,7 @@ def _monthly_groups(df: pd.DataFrame) -> list[dict]:
     if df.empty:
         return []
 
-    grouped = df.groupby(["year", "month"]).agg(
+    grouped = df.groupby(["year", "month"], observed=True).agg(
         revenue=("actual_revenue", "sum"),
         profit=("net_profit", "sum"),
         cost=("cost", "sum"),
@@ -127,7 +127,7 @@ def _excluded_transactions(store: DataStore, period: PeriodFilter | None) -> dic
     if excluded.empty:
         return {"total": 0, "breakdown": []}
 
-    by_type = excluded.groupby("transaction_type").agg(
+    by_type = excluded.groupby("transaction_type", observed=True).agg(
         count=("receipt_id", "count"),
         value=("actual_revenue", "sum"),
         units=("quantity", "sum"),

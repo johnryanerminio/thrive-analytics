@@ -144,14 +144,14 @@ def _velocity_rank(brand_name: str, regular_df: pd.DataFrame, category: str) -> 
     """Rank this brand by units/day within its primary category."""
     cat_df = regular_df[regular_df["category_clean"] == category]
     days = max((cat_df["sale_date"].max() - cat_df["sale_date"].min()).days + 1, 1)
-    brand_vel = cat_df.groupby("brand_clean")["quantity"].sum() / days
+    brand_vel = cat_df.groupby("brand_clean", observed=True)["quantity"].sum() / days
     brand_vel = brand_vel.sort_values(ascending=False)
     ranked = brand_vel.index.tolist()
     return ranked.index(brand_name) + 1 if brand_name in ranked else 0
 
 
 def _top_products(brand_df: pd.DataFrame, n: int) -> list[dict]:
-    agg = brand_df.groupby("product").agg(
+    agg = brand_df.groupby("product", observed=True).agg(
         units=("quantity", "sum"),
         revenue=("actual_revenue", "sum"),
         cost=("cost", "sum"),
@@ -166,7 +166,7 @@ def _products_by_store(brand_df: pd.DataFrame, n: int) -> dict[str, list[dict]]:
     result = {}
     for s in sorted(brand_df["store_clean"].dropna().unique()):
         sdf = brand_df[brand_df["store_clean"] == s]
-        agg = sdf.groupby("product").agg(
+        agg = sdf.groupby("product", observed=True).agg(
             units=("quantity", "sum"),
             revenue=("actual_revenue", "sum"),
             cost=("cost", "sum"),
@@ -179,7 +179,7 @@ def _products_by_store(brand_df: pd.DataFrame, n: int) -> dict[str, list[dict]]:
 
 
 def _store_summary(brand_df: pd.DataFrame) -> list[dict]:
-    agg = brand_df.groupby("store_clean").agg(
+    agg = brand_df.groupby("store_clean", observed=True).agg(
         units=("quantity", "sum"),
         revenue=("actual_revenue", "sum"),
         cost=("cost", "sum"),

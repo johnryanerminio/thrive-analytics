@@ -102,7 +102,7 @@ def monthly_trend(brand_df: pd.DataFrame) -> list[dict]:
     if brand_df.empty:
         return []
 
-    monthly = brand_df.groupby("year_month").agg(
+    monthly = brand_df.groupby("year_month", observed=True).agg(
         revenue=("actual_revenue", "sum"),
         cost=("cost", "sum"),
         units=("quantity", "sum"),
@@ -146,8 +146,8 @@ def share_of_category_trend(
     category: str,
 ) -> list[dict]:
     """Monthly share-of-category trend for a specific category."""
-    brand_monthly = brand_df[brand_df["category_clean"] == category].groupby("year_month")["actual_revenue"].sum()
-    cat_monthly = all_regular_df[all_regular_df["category_clean"] == category].groupby("year_month")["actual_revenue"].sum()
+    brand_monthly = brand_df[brand_df["category_clean"] == category].groupby("year_month", observed=True)["actual_revenue"].sum()
+    cat_monthly = all_regular_df[all_regular_df["category_clean"] == category].groupby("year_month", observed=True)["actual_revenue"].sum()
 
     all_periods = sorted(set(brand_monthly.index) | set(cat_monthly.index))
     results = []

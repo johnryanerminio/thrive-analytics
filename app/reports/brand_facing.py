@@ -65,7 +65,7 @@ def generate_json(
     # Velocity rank
     cat_df = regular_df[regular_df["category_clean"] == primary_category]
     days = max((cat_df["sale_date"].max() - cat_df["sale_date"].min()).days + 1, 1) if len(cat_df) > 0 else 1
-    brand_vel = cat_df.groupby("brand_clean")["quantity"].sum() / days
+    brand_vel = cat_df.groupby("brand_clean", observed=True)["quantity"].sum() / days
     brand_vel = brand_vel.sort_values(ascending=False)
     ranked = brand_vel.index.tolist()
     summary["velocity_rank"] = ranked.index(brand_name) + 1 if brand_name in ranked else 0
@@ -202,7 +202,7 @@ def _store_gap_analysis(
 
 def _product_mix(brand_df: pd.DataFrame) -> dict:
     """Top/bottom SKUs + expansion opportunities."""
-    agg = brand_df.groupby("product").agg(
+    agg = brand_df.groupby("product", observed=True).agg(
         units=("quantity", "sum"),
         revenue=("actual_revenue", "sum"),
         cost=("cost", "sum"),
@@ -238,16 +238,16 @@ def _product_mix(brand_df: pd.DataFrame) -> dict:
 def _pricing_consistency(brand_df: pd.DataFrame) -> list[dict]:
     """Same product price across stores (min/max/avg/std dev)."""
     # Average price per unit per product per store
-    agg = brand_df.groupby(["product", "store_clean"]).agg(
+    agg = brand_df.groupby(["product", "store_clean"], observed=True).agg(
         avg_price=("actual_revenue", lambda x: x.sum() / brand_df.loc[x.index, "quantity"].sum() if brand_df.loc[x.index, "quantity"].sum() > 0 else 0),
     ).reset_index()
 
     # Products sold at multiple stores
-    multi = agg.groupby("product").filter(lambda x: len(x) >= 2)
+    multi = agg.groupby("product", observed=True).filter(lambda x: len(x) >= 2)
     if multi.empty:
         return []
 
-    pricing = multi.groupby("product")["avg_price"].agg(
+    pricing = multi.groupby("product", observed=True)["avg_price"].agg(
         ["min", "max", "mean", "std", "count"]
     ).reset_index()
     pricing.columns = ["product", "min_price", "max_price", "avg_price", "std_dev", "store_count"]
@@ -267,7 +267,7 @@ def _promotional_effectiveness(brand_df: pd.DataFrame) -> dict:
     if expanded.empty:
         return {"lift": lift, "by_deal": []}
 
-    deal_agg = expanded.groupby("deal_name").agg(
+    deal_agg = expanded.groupby("deal_name", observed=True).agg(
         uses=("receipt_id", "nunique"),
         revenue=("revenue", "sum"),
         discounts=("discounts", "sum"),

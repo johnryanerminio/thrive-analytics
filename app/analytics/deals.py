@@ -73,7 +73,7 @@ def deal_summary(df: pd.DataFrame, top_n: int | None = None, _expanded: pd.DataF
     if expanded.empty:
         return []
 
-    agg = expanded.groupby("deal_name").agg(
+    agg = expanded.groupby("deal_name", observed=True).agg(
         times_used=("receipt_id", "nunique"),
         units=("quantity", "sum"),
         revenue=("revenue", "sum"),
@@ -95,7 +95,7 @@ def deal_summary(df: pd.DataFrame, top_n: int | None = None, _expanded: pd.DataF
 
 def deal_type_summary(regular_df: pd.DataFrame) -> list[dict]:
     """Performance breakdown by deal type classification."""
-    agg = regular_df.groupby("deal_type").agg(
+    agg = regular_df.groupby("deal_type", observed=True).agg(
         transactions=("receipt_id", "nunique"),
         units=("quantity", "sum"),
         full_price_revenue=("pre_discount_revenue", "sum"),
@@ -121,7 +121,7 @@ def deal_summary_by_store(df: pd.DataFrame, top_n: int = 10, _expanded: pd.DataF
     result = {}
     for store in sorted(expanded["store"].dropna().unique()):
         store_data = expanded[expanded["store"] == store]
-        agg = store_data.groupby("deal_name").agg(
+        agg = store_data.groupby("deal_name", observed=True).agg(
             times_used=("receipt_id", "nunique"),
             units=("quantity", "sum"),
             revenue=("revenue", "sum"),

@@ -29,7 +29,7 @@ def compute_sales_scores(
 
     # Face-to-face %
     if sales_df is not None and "order_type" in sales_df.columns:
-        f2f = sales_df.groupby("sold_by").apply(
+        f2f = sales_df.groupby("sold_by", observed=True).apply(
             lambda x: (
                 x["order_type"].str.upper().str.contains("WALK|IN-STORE|FACE", na=False).sum()
                 / len(x) * 100

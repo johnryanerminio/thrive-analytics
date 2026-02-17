@@ -180,7 +180,7 @@ class DataStore:
         if self.df.empty:
             return []
         regular = self.df[self.df["transaction_type"] == "REGULAR"]
-        rev = regular.groupby("brand_clean")["actual_revenue"].sum().sort_values(ascending=False)
+        rev = regular.groupby("brand_clean", observed=True)["actual_revenue"].sum().sort_values(ascending=False)
         return rev.index.tolist()
 
     def categories(self) -> list[str]:
@@ -229,7 +229,7 @@ class DataStore:
     def category_margin_lookup(self, period: PeriodFilter | None = None) -> dict[str, float]:
         """Average margin by category for regular sales."""
         regular = self.get_regular(period)
-        cat = regular.groupby("category_clean").agg(
+        cat = regular.groupby("category_clean", observed=True).agg(
             revenue=("actual_revenue", "sum"),
             cost=("cost", "sum"),
         ).reset_index()
@@ -239,7 +239,7 @@ class DataStore:
     def brand_category_rankings(self, period: PeriodFilter | None = None) -> pd.DataFrame:
         """Revenue rankings per brand within each category."""
         regular = self.get_regular(period)
-        bcr = regular.groupby(["category_clean", "brand_clean"])["actual_revenue"].sum().reset_index()
-        bcr["rank"] = bcr.groupby("category_clean")["actual_revenue"].rank(ascending=False, method="min")
-        bcr["total_brands"] = bcr.groupby("category_clean")["brand_clean"].transform("count")
+        bcr = regular.groupby(["category_clean", "brand_clean"], observed=True)["actual_revenue"].sum().reset_index()
+        bcr["rank"] = bcr.groupby("category_clean", observed=True)["actual_revenue"].rank(ascending=False, method="min")
+        bcr["total_brands"] = bcr.groupby("category_clean", observed=True)["brand_clean"].transform("count")
         return bcr

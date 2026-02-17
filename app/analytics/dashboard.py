@@ -393,10 +393,28 @@ def month_over_month(store: DataStore, period: PeriodFilter | None) -> dict:
     worst = min(monthly, key=lambda m: m["revenue"]) if monthly else None
 
     # Side-by-side YoY comparison: use the two most recent full years
+    # If selected period is single-year, fetch prior year from full dataset
     years = sorted(set(m["year"] for m in monthly))
     yoy_comparison = []
     if len(years) >= 2:
         y1, y2 = years[-2], years[-1]
+    elif len(years) == 1:
+        y2 = years[0]
+        y1 = y2 - 1
+        # Fetch prior year data from unfiltered store
+        from app.data.schemas import PeriodType
+        prior_period = PeriodFilter(period_type=PeriodType.YEAR, year=y1)
+        prior_regular = store.get_regular(prior_period)
+        if not prior_regular.empty:
+            prior_monthly = _monthly_groups(prior_regular)
+            for m in prior_monthly:
+                by_ym[(m["year"], m["month_num"])] = m
+        else:
+            y1 = None  # no prior year data
+    else:
+        y1 = None
+
+    if y1 is not None:
         for mn in range(1, 13):
             d1 = by_ym.get((y1, mn))
             d2 = by_ym.get((y2, mn))

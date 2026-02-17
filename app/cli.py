@@ -175,7 +175,8 @@ def cmd_serve(args):
     """Start the API server."""
     import uvicorn
     print(f"\nStarting Thrive Analytics API on port {args.port}...")
-    uvicorn.run("app.main:app", host="0.0.0.0", port=args.port, reload=args.reload)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=args.port, reload=args.reload,
+                timeout_keep_alive=65)
 
 
 def main():

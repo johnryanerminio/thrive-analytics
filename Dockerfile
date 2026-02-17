@@ -9,4 +9,4 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["python", "-m", "app.cli", "serve"]
+CMD ["gunicorn", "app.main:app", "-c", "gunicorn.conf.py"]

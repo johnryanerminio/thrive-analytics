@@ -1658,7 +1658,7 @@
                  x-show="brandReport.category_breakdown?.filter(c => c.units > 0).length > 1" x-cloak>
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Cost & Margin by Product Type</h3>
               <div class="grid gap-3"
-                   :class="brandReport.category_breakdown?.filter(c => c.units > 0).length <= 4 ? 'grid-cols-2 md:grid-cols-' + brandReport.category_breakdown?.filter(c => c.units > 0).length : 'grid-cols-2 md:grid-cols-4'">
+                   :class="brandReport.category_breakdown?.filter(c => c.units > 0).length <= 4 ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-' + brandReport.category_breakdown?.filter(c => c.units > 0).length : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-4'">
                 <template x-for="cat in (brandReport.category_breakdown || []).filter(c => c.units > 0).sort((a,b) => b.revenue - a.revenue)" :key="cat.category_clean">
                   <div class="bg-[#0f1117] rounded-lg p-4 border border-[rgba(255,255,255,0.06)]">
                     <div class="text-[10px] font-semibold uppercase tracking-wider text-gold mb-3" x-text="cat.category_clean"></div>
@@ -3299,9 +3299,17 @@ function dashboard() {
 
     _c(id, config) {
       if (this._charts[id]) { this._charts[id].destroy(); delete this._charts[id]; }
-      const el = document.getElementById(id);
-      if (!el) return;
-      this._charts[id] = new Chart(el, config);
+      // Defer to requestAnimationFrame so canvas has layout dimensions
+      // (fixes blank charts when x-if just inserted the element)
+      requestAnimationFrame(() => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        try {
+          this._charts[id] = new Chart(el, config);
+        } catch(e) {
+          console.error('Chart render failed:', id, e);
+        }
+      });
     },
 
     renderExecCharts() {

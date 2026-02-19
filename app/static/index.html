@@ -12,8 +12,8 @@
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Chart.js 4 -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <!-- Chart.js 4.4.6 (self-hosted — pinned version, no CDN dependency) -->
+  <script src="/chart.min.js"></script>
   <!-- Alpine.js 3 -->
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
 
@@ -2847,17 +2847,28 @@
 
 <script>
 const COLORS = ['#c8956c', '#22c55e', '#64748b', '#a8555a', '#c49357', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#14b8a6'];
-// Dark theme defaults for Chart.js
-Chart.defaults.color = '#94a3b8';
-Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
-Chart.defaults.plugins.legend.labels.color = '#94a3b8';
-Chart.defaults.scale = Chart.defaults.scale || {};
-Chart.defaults.scales = Chart.defaults.scales || {};
-['linear','category'].forEach(t => {
-  if (!Chart.defaults.scales[t]) Chart.defaults.scales[t] = {};
-  Chart.defaults.scales[t].grid = { color: 'rgba(255,255,255,0.06)' };
-  Chart.defaults.scales[t].ticks = { ...(Chart.defaults.scales[t].ticks||{}), color: '#94a3b8' };
-});
+// Verify Chart.js loaded
+if (typeof Chart === 'undefined') {
+  console.error('FATAL: Chart.js did not load');
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.chart-container').forEach(c => {
+      const d = c.querySelector('[style*="height"]');
+      if (d) d.innerHTML = '<div style="padding:40px;text-align:center;color:#a8555a;font-size:13px">Chart.js library failed to load. Check network.</div>';
+    });
+  });
+} else {
+  // Dark theme defaults for Chart.js
+  Chart.defaults.color = '#94a3b8';
+  Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+  Chart.defaults.plugins.legend.labels.color = '#94a3b8';
+  Chart.defaults.scales = Chart.defaults.scales || {};
+  ['linear','category'].forEach(t => {
+    if (!Chart.defaults.scales[t]) Chart.defaults.scales[t] = {};
+    Chart.defaults.scales[t].grid = { color: 'rgba(255,255,255,0.06)' };
+    Chart.defaults.scales[t].ticks = { ...(Chart.defaults.scales[t].ticks||{}), color: '#94a3b8' };
+  });
+  console.log('Chart.js v' + Chart.version + ' loaded');
+}
 const MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -3299,17 +3310,33 @@ function dashboard() {
 
     _c(id, config) {
       if (this._charts[id]) { this._charts[id].destroy(); delete this._charts[id]; }
-      // Defer to requestAnimationFrame so canvas has layout dimensions
-      // (fixes blank charts when x-if just inserted the element)
-      requestAnimationFrame(() => {
+      const self = this;
+      let attempts = 0;
+      function tryRender() {
         const el = document.getElementById(id);
-        if (!el) return;
+        if (!el) {
+          if (++attempts < 10) { setTimeout(tryRender, 100); return; }
+          console.error('Chart canvas not found after retries:', id);
+          return;
+        }
+        // Wait until the canvas has actual layout dimensions
+        if (el.offsetWidth === 0 && ++attempts < 10) {
+          setTimeout(tryRender, 100);
+          return;
+        }
         try {
-          this._charts[id] = new Chart(el, config);
+          if (typeof Chart === 'undefined') {
+            el.parentElement.innerHTML = '<div style="padding:40px;text-align:center;color:#a8555a;font-size:13px">Chart.js failed to load</div>';
+            return;
+          }
+          self._charts[id] = new Chart(el, config);
         } catch(e) {
           console.error('Chart render failed:', id, e);
+          el.parentElement.innerHTML = '<div style="padding:40px;text-align:center;color:#a8555a;font-size:13px">Chart error: ' + (e.message||e) + '</div>';
         }
-      });
+      }
+      // Double-defer: nextTick (Alpine DOM) → rAF (browser layout) → render
+      requestAnimationFrame(tryRender);
     },
 
     renderExecCharts() {

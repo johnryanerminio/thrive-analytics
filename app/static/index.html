@@ -314,6 +314,32 @@
     }
 
     /* ============================================================ */
+    /* STICKY FIRST COLUMN — all screen sizes                       */
+    /* ============================================================ */
+    .data-table.sticky-col th:first-child,
+    .data-table.sticky-col td:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      background: var(--bg-card);
+      border-right: 1px solid var(--border-primary);
+      min-width: 100px;
+    }
+    .data-table.sticky-col thead th:first-child {
+      background: var(--bg-header);
+      z-index: 3;
+    }
+    .data-table.sticky-col tbody tr:nth-child(even) td:first-child {
+      background: var(--bg-card-alt);
+    }
+    .data-table.sticky-col tbody tr:hover td:first-child {
+      background: #1a1d27;
+    }
+    .data-table.sticky-col .total-row td:first-child {
+      background: var(--accent-copper-bg);
+    }
+
+    /* ============================================================ */
     /* RESPONSIVE: Mobile & Tablet                                  */
     /* ============================================================ */
 
@@ -403,27 +429,6 @@
 
       /* Loading overlay: full width */
       .loading-overlay-wrapper { margin-left: 0 !important; }
-
-      /* Sticky first column for scrollable tables */
-      .table-scroll-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-      .data-table.sticky-col th:first-child,
-      .data-table.sticky-col td:first-child {
-        position: sticky;
-        left: 0;
-        z-index: 2;
-        background: var(--bg-card);
-        border-right: 1px solid var(--border-primary);
-      }
-      .data-table.sticky-col thead th:first-child {
-        background: var(--bg-header);
-        z-index: 3;
-      }
-      .data-table.sticky-col tbody tr:nth-child(even) td:first-child {
-        background: var(--bg-card-alt);
-      }
-      .data-table.sticky-col tbody tr:hover td:first-child {
-        background: var(--bg-hover);
-      }
 
       /* Tap targets: minimum 44px for interactive elements */
       select, button, .nav-item, .month-btn {

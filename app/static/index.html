@@ -313,6 +313,134 @@
       animation: spin 0.8s linear infinite;
     }
 
+    /* ============================================================ */
+    /* RESPONSIVE: Mobile & Tablet                                  */
+    /* ============================================================ */
+
+    /* --- Tablet (768-1023px) --- */
+    @media (max-width: 1023px) and (min-width: 768px) {
+      .sidebar { width: 220px; }
+      .topbar  { left: 220px; }
+      .main-content { margin-left: 220px; }
+      .loading-overlay-wrapper { margin-left: 220px !important; }
+    }
+
+    /* --- Mobile (<768px) --- */
+    @media (max-width: 767px) {
+      /* Sidebar: off-screen drawer */
+      .sidebar {
+        width: 280px;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        z-index: 60;
+      }
+      .sidebar.open { transform: translateX(0); }
+
+      /* Backdrop behind sidebar */
+      .sidebar-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 55;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease;
+      }
+      .sidebar-backdrop.visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      /* Topbar: full width, add space for hamburger */
+      .topbar {
+        left: 0;
+        padding: 0 12px;
+        gap: 8px;
+      }
+
+      /* Main content: full width */
+      .main-content {
+        margin-left: 0;
+        padding-top: 72px;
+        padding-bottom: 24px;
+      }
+      .main-content.px-6 { padding-left: 12px; padding-right: 12px; }
+
+      /* Hamburger button (visible only on mobile) */
+      .hamburger-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 8px;
+        color: var(--text-secondary);
+        flex-shrink: 0;
+      }
+      .hamburger-btn:active { background: rgba(255,255,255,0.06); }
+
+      /* Page title: truncate on mobile */
+      .topbar h1 { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+
+      /* Period picker popover: full-width on mobile */
+      .picker-popover { width: calc(100vw - 24px); right: -12px; max-width: 420px; }
+
+      /* Font size floors */
+      body { font-size: 14px; }
+      .data-table td { font-size: 12px; padding: 8px 10px; }
+      .data-table th { font-size: 10px; padding: 8px 10px; }
+
+      /* KPI cards: slightly tighter on mobile */
+      .kpi-card { padding: 12px 14px; }
+      .kpi-card .text-2xl { font-size: 1.25rem; }
+
+      /* Chart containers: tighter padding */
+      .chart-container { padding: 16px; }
+
+      /* Metric tabs: horizontally scrollable */
+      .metric-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; }
+      .metric-tab { white-space: nowrap; min-height: 44px; display: flex; align-items: center; }
+
+      /* Loading overlay: full width */
+      .loading-overlay-wrapper { margin-left: 0 !important; }
+
+      /* Sticky first column for scrollable tables */
+      .table-scroll-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .data-table.sticky-col th:first-child,
+      .data-table.sticky-col td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        background: var(--bg-card);
+        border-right: 1px solid var(--border-primary);
+      }
+      .data-table.sticky-col thead th:first-child {
+        background: var(--bg-header);
+        z-index: 3;
+      }
+      .data-table.sticky-col tbody tr:nth-child(even) td:first-child {
+        background: var(--bg-card-alt);
+      }
+      .data-table.sticky-col tbody tr:hover td:first-child {
+        background: var(--bg-hover);
+      }
+
+      /* Tap targets: minimum 44px for interactive elements */
+      select, button, .nav-item, .month-btn {
+        min-height: 44px;
+      }
+      .month-btn { min-height: 36px; } /* Grid is tight, 36px is acceptable */
+
+      /* Flex items in topbar: wrap and stack on very small screens */
+      .topbar .ml-auto { gap: 6px; }
+    }
+
+    /* Hide hamburger on desktop/tablet */
+    @media (min-width: 768px) {
+      .hamburger-btn { display: none; }
+      .sidebar-backdrop { display: none; }
+    }
+
     /* Print styles — light output */
     @media print {
       .sidebar, .topbar { display: none !important; }
@@ -336,10 +464,13 @@
 
 <body class="min-h-screen" x-data="dashboard()" x-init="init()">
 
+  <!-- Mobile backdrop -->
+  <div class="sidebar-backdrop" :class="sidebarOpen && 'visible'" @click="sidebarOpen = false"></div>
+
   <!-- ============================================================ -->
   <!-- SIDEBAR                                                       -->
   <!-- ============================================================ -->
-  <aside class="sidebar">
+  <aside class="sidebar" :class="sidebarOpen && 'open'">
     <!-- Logo -->
     <div class="flex items-center gap-3 px-5 py-5 border-b border-white/5">
       <img src="/logo.png" class="w-10 h-10" style="filter: brightness(0) invert(1)" alt="Thrive">
@@ -451,10 +582,19 @@
   <!-- TOP BAR                                                       -->
   <!-- ============================================================ -->
   <header class="topbar">
+    <!-- Hamburger (mobile only) -->
+    <button class="hamburger-btn" @click="sidebarOpen = !sidebarOpen" aria-label="Toggle menu">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+
     <!-- Page title -->
     <h1 class="text-lg font-semibold text-[#f8fafc]" x-text="pageTitle()"></h1>
 
-    <div class="ml-auto flex items-center gap-3">
+    <div class="ml-auto flex items-center gap-2 md:gap-3 flex-shrink min-w-0">
       <!-- Brand search (only in brands view) -->
       <div class="relative" x-show="view === 'brands'" x-cloak>
         <input type="text"
@@ -463,12 +603,12 @@
                @focus="showBrandDD = brandSearch.length > 0"
                @click.outside="showBrandDD = false"
                placeholder="Search brands..."
-               class="w-56 px-3 py-1.5 text-sm border border-muted rounded-lg bg-[#161922] text-[#cbd5e1] placeholder-[#64748b] focus:outline-none focus:border-gold">
+               class="w-36 md:w-56 px-3 py-2 text-sm border border-muted rounded-lg bg-[#161922] text-[#cbd5e1] placeholder-[#64748b] focus:outline-none focus:border-gold">
         <!-- Brand dropdown -->
         <div class="absolute top-full left-0 right-0 mt-1 bg-[#13151d] border border-muted rounded-lg shadow-lg max-h-64 overflow-y-auto z-50"
              x-show="showBrandDD && filteredBrands().length > 0" x-cloak>
           <template x-for="b in filteredBrands()" :key="b">
-            <div class="px-3 py-2 text-sm cursor-pointer hover:bg-[rgba(200,149,108,0.06)] text-[#cbd5e1] flex items-center gap-1.5"
+            <div class="px-3 py-2.5 text-sm cursor-pointer hover:bg-[rgba(200,149,108,0.06)] text-[#cbd5e1] flex items-center gap-1.5"
                  @click="selectedBrand = b; brandSearch = b; showBrandDD = false; loadBrandReport();">
               <span x-text="b"></span>
               <img x-show="internalBrands.has(b.toUpperCase())" src="/logo.png" class="w-4 h-4" style="filter: brightness(0) saturate(100%) invert(62%) sepia(30%) saturate(500%) hue-rotate(350deg) brightness(95%)" title="Thrive In-House Brand">
@@ -480,7 +620,7 @@
       <!-- Store filter -->
       <select x-model="selectedStore"
               @change="loadCurrentView()"
-              class="px-3 py-1.5 text-sm border border-muted rounded-lg bg-[#161922] text-[#cbd5e1] focus:outline-none focus:border-gold">
+              class="hidden md:block px-3 py-2 text-sm border border-muted rounded-lg bg-[#161922] text-[#cbd5e1] focus:outline-none focus:border-gold">
         <option value="">All Stores</option>
         <template x-for="s in stores" :key="s">
           <option :value="s" x-text="s"></option>
@@ -490,7 +630,7 @@
       <!-- Period picker -->
       <div class="relative">
         <button @click="showPicker = !showPicker"
-                class="flex items-center gap-2 px-4 py-1.5 text-sm font-medium border border-muted rounded-lg bg-[#161922] text-[#cbd5e1] hover:border-gold transition-colors">
+                class="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 text-xs md:text-sm font-medium border border-muted rounded-lg bg-[#161922] text-[#cbd5e1] hover:border-gold transition-colors">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2"/>
             <line x1="16" y1="2" x2="16" y2="6"/>
@@ -576,8 +716,20 @@
   <!-- ============================================================ -->
   <main class="main-content px-6">
 
+    <!-- Mobile-only filter row (store selector visible on mobile) -->
+    <div class="md:hidden flex flex-wrap gap-2 mb-4">
+      <select x-model="selectedStore"
+              @change="loadCurrentView()"
+              class="flex-1 min-w-0 px-3 py-2 text-sm border border-muted rounded-lg bg-[#161922] text-[#cbd5e1] focus:outline-none focus:border-gold">
+        <option value="">All Stores</option>
+        <template x-for="s in stores" :key="s">
+          <option :value="s" x-text="s"></option>
+        </template>
+      </select>
+    </div>
+
     <!-- Loading overlay -->
-    <div x-show="loading" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,17,23,0.8)]" style="margin-left:260px">
+    <div x-show="loading" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(15,17,23,0.8)] loading-overlay-wrapper" style="margin-left:260px">
       <div class="flex flex-col items-center gap-3">
         <svg class="animate-spin" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#c8956c" stroke-width="2">
           <circle cx="12" cy="12" r="10" stroke-opacity="0.2"/>
@@ -699,7 +851,7 @@
                         : 'bg-destructive/10 text-destructive'"
                     x-text="execData.sales_mix?.health || 'unknown'"></span>
             </div>
-            <div class="flex gap-6 items-center">
+            <div class="flex flex-col sm:flex-row gap-4 sm:gap-6 sm:items-center">
               <!-- Full price bar -->
               <div class="flex-1">
                 <div class="flex justify-between text-xs mb-1">
@@ -808,7 +960,7 @@
           <div x-show="momData.yoy_comparison && momData.yoy_comparison.length > 0" class="mb-6">
 
             <!-- Metric Tabs -->
-            <div class="metric-tabs mb-6 inline-flex">
+            <div class="metric-tabs mb-6">
               <template x-for="tab in [{key:'revenue',label:'Revenue'},{key:'margin',label:'Margin'},{key:'profit',label:'Profit'},{key:'units',label:'Units'},{key:'full_price',label:'Full Price %'}]" :key="tab.key">
                 <div class="metric-tab" :class="momMetric === tab.key && 'active'" @click="momMetric = tab.key" x-text="tab.label"></div>
               </template>
@@ -844,7 +996,7 @@
                 <span x-text="momData.yoy_comparison?.[0]?.y1"></span> vs <span x-text="momData.yoy_comparison?.[0]?.y2"></span>
                 — <span class="text-gold" x-text="{revenue:'Revenue',margin:'Margin',profit:'Profit',units:'Units',full_price:'Full Price %'}[momMetric]"></span>
               </h3>
-              <table class="data-table">
+              <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th>Month</th>
@@ -941,7 +1093,7 @@
           <!-- Monthly Breakdown Table (kept) -->
           <div class="chart-container mb-6 overflow-x-auto">
             <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Monthly Breakdown</h3>
-            <table class="data-table">
+            <table class="data-table sticky-col">
               <thead>
                 <tr>
                   <th>Month</th>
@@ -1086,7 +1238,7 @@
           <!-- All Stores Table -->
           <div class="chart-container mb-6 overflow-x-auto">
             <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">All Stores</h3>
-            <table class="data-table">
+            <table class="data-table sticky-col">
               <thead>
                 <tr>
                   <th>Rank</th>
@@ -1146,15 +1298,15 @@
       <template x-if="yearEndData">
         <div>
           <!-- Year selector + Print -->
-          <div class="flex items-center gap-4 mb-6">
+          <div class="flex items-center gap-3 mb-6">
             <select x-model.number="yearEndYear" @change="loadYearEnd()"
-                    class="px-3 py-1.5 text-sm border border-muted rounded-lg bg-[#161922] text-[#cbd5e1] focus:outline-none focus:border-gold">
+                    class="px-3 py-2 text-sm border border-muted rounded-lg bg-[#161922] text-[#cbd5e1] focus:outline-none focus:border-gold">
               <template x-for="y in availableYears()" :key="y">
                 <option :value="y" x-text="y"></option>
               </template>
             </select>
             <button @click="window.print()"
-                    class="px-4 py-1.5 text-sm font-medium bg-gold text-[#0f1117] rounded-lg hover:bg-gold/90 transition-colors flex items-center gap-2">
+                    class="px-4 py-2 md:py-1.5 text-sm font-medium bg-gold text-[#0f1117] rounded-lg hover:bg-gold/90 transition-colors flex items-center gap-2">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="6 9 6 2 18 2 18 9"/>
                 <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
@@ -1336,7 +1488,7 @@
           <!-- Monthly Summary Table -->
           <div class="chart-container mb-6 overflow-x-auto">
             <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Monthly Summary</h3>
-            <table class="data-table">
+            <table class="data-table sticky-col">
               <thead>
                 <tr>
                   <th>Month</th>
@@ -1400,30 +1552,20 @@
     <section x-show="view === 'brands'" x-cloak>
 
       <!-- Brand search + sub-tabs + download -->
-      <div class="flex flex-wrap items-center gap-4 mb-6">
-        <!-- Brand search (also in topbar, this is inline fallback for mobile) -->
-        <div class="relative hidden" x-show="false">
-          <input type="text" x-model="brandSearch"
-                 @input="showBrandDD = brandSearch.length > 0"
-                 @focus="showBrandDD = brandSearch.length > 0"
-                 @click.outside="showBrandDD = false"
-                 placeholder="Search brands..."
-                 class="w-56 px-3 py-1.5 text-sm border border-muted rounded-lg bg-[#161922] text-[#cbd5e1] placeholder-[#64748b] focus:outline-none focus:border-gold">
-        </div>
-
+      <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
         <!-- Selected brand label -->
         <div class="text-sm text-[#94a3b8] font-medium flex items-center gap-2" x-show="selectedBrand" x-cloak>
           Viewing: <span class="text-primary font-semibold" x-text="selectedBrand"></span>
           <img x-show="selectedBrand && internalBrands.has(selectedBrand.toUpperCase())" src="/logo.png" class="w-4 h-4" style="filter: brightness(0) saturate(100%) invert(62%) sepia(30%) saturate(500%) hue-rotate(350deg) brightness(95%)" title="Thrive In-House Brand">
         </div>
 
-        <div class="ml-auto flex items-center gap-2">
-          <!-- Sub-tabs -->
+        <div class="sm:ml-auto flex items-center gap-2 flex-wrap">
+          <!-- Sub-tabs (44px min tap targets) -->
           <div class="flex rounded-lg border border-muted overflow-hidden">
-            <button class="px-4 py-1.5 text-xs font-medium transition-colors"
+            <button class="px-4 py-2.5 md:py-1.5 text-sm md:text-xs font-medium transition-colors"
                     :class="brandSubTab === 'dispensary' ? 'bg-gold text-[#0f1117]' : 'bg-[#161922] text-[#94a3b8] hover:bg-[#1e293b]'"
                     @click="brandSubTab = 'dispensary'">Dispensary Report</button>
-            <button class="px-4 py-1.5 text-xs font-medium transition-colors"
+            <button class="px-4 py-2.5 md:py-1.5 text-sm md:text-xs font-medium transition-colors"
                     :class="brandSubTab === 'facing' ? 'bg-gold text-[#0f1117]' : 'bg-[#161922] text-[#94a3b8] hover:bg-[#1e293b]'"
                     @click="brandSubTab = 'facing'; if(selectedBrand && !facingReport) loadFacingReport();">Brand Facing</button>
           </div>
@@ -1431,13 +1573,13 @@
           <!-- Download Excel -->
           <a x-show="brandSubTab === 'dispensary' && selectedBrand" x-cloak
              :href="'/api/brands/' + encodeURIComponent(selectedBrand) + '/excel' + periodQuery()"
-             class="px-3 py-1.5 text-xs font-medium bg-success text-white rounded-lg hover:bg-success/90 transition-colors flex items-center gap-1">
+             class="px-3 py-2.5 md:py-1.5 text-sm md:text-xs font-medium bg-success text-white rounded-lg hover:bg-success/90 transition-colors flex items-center gap-1">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Excel
           </a>
           <a x-show="brandSubTab === 'facing' && selectedBrand" x-cloak
              :href="'/api/brands/' + encodeURIComponent(selectedBrand) + '/facing/excel' + periodQuery()"
-             class="px-3 py-1.5 text-xs font-medium bg-success text-white rounded-lg hover:bg-success/90 transition-colors flex items-center gap-1">
+             class="px-3 py-2.5 md:py-1.5 text-sm md:text-xs font-medium bg-success text-white rounded-lg hover:bg-success/90 transition-colors flex items-center gap-1">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Excel
           </a>
@@ -1547,7 +1689,7 @@
             <!-- Monthly Cost & Revenue Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="brandReport.trend && brandReport.trend.length > 0" x-cloak>
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Monthly Cost & Revenue Breakdown</h3>
-              <table class="data-table">
+              <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th>Month</th>
@@ -1606,7 +1748,7 @@
             <!-- Velocity by Category Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="brandReport.velocity_by_category && brandReport.velocity_by_category.length > 0" x-cloak>
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Velocity by Category</h3>
-              <table class="data-table">
+              <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th>Category</th>
@@ -1642,7 +1784,7 @@
             <!-- Top Products Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="brandReport.top_products && brandReport.top_products.length > 0" x-cloak>
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Top Products</h3>
-              <table class="data-table">
+              <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th>Product</th>
@@ -1679,7 +1821,7 @@
             <!-- Deal Performance Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="brandReport.deal_performance && brandReport.deal_performance.length > 0" x-cloak>
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Deal Performance</h3>
-              <table class="data-table">
+              <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th>Deal Name</th>
@@ -1712,7 +1854,7 @@
             <!-- Performance by Store Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="brandReport.by_store && brandReport.by_store.length > 0" x-cloak>
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Performance by Store</h3>
-              <table class="data-table">
+              <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th>Store</th>
@@ -1808,7 +1950,7 @@
             <!-- Distribution Scorecard Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="facingReport.distribution_scorecard && facingReport.distribution_scorecard.length > 0" x-cloak>
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Distribution Scorecard</h3>
-              <table class="data-table">
+              <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th>Store</th>
@@ -1855,7 +1997,7 @@
             <!-- Store Gap Analysis Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="facingReport.store_gap_analysis && facingReport.store_gap_analysis.length > 0" x-cloak>
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Store Gap Analysis</h3>
-              <table class="data-table">
+              <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th>Store</th>
@@ -1880,7 +2022,7 @@
             <!-- Top Products (Facing) -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="facingReport.top_products && facingReport.top_products.length > 0" x-cloak>
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Top Products</h3>
-              <table class="data-table">
+              <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th>Product</th>
@@ -1911,7 +2053,7 @@
             <!-- SKU Expansion Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="facingReport.sku_expansion && facingReport.sku_expansion.length > 0" x-cloak>
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">SKU Expansion Opportunities</h3>
-              <table class="data-table">
+              <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th>Product</th>
@@ -1938,7 +2080,7 @@
             <!-- Pricing Consistency Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="facingReport.pricing_consistency && facingReport.pricing_consistency.length > 0" x-cloak>
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Pricing Consistency</h3>
-              <table class="data-table">
+              <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th>Product</th>
@@ -1989,7 +2131,7 @@
               </div>
               <!-- By Deal Table -->
               <div class="chart-container overflow-x-auto" x-show="facingReport.promotional_effectiveness?.by_deal && facingReport.promotional_effectiveness.by_deal.length > 0">
-                <table class="data-table">
+                <table class="data-table sticky-col">
                   <thead>
                     <tr>
                       <th>Deal</th>
@@ -2051,23 +2193,23 @@
     <section x-show="view === 'master'" x-cloak>
 
       <!-- Sub-tabs + Download -->
-      <div class="flex flex-wrap items-center gap-3 mb-6">
-        <div class="flex rounded-lg border border-muted overflow-hidden">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
+        <div class="flex rounded-lg border border-muted overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0">
           <template x-for="tab in ['margin','deals','budtenders','customers','rewards']" :key="tab">
-            <button class="px-4 py-1.5 text-xs font-medium capitalize transition-colors"
+            <button class="px-4 py-2.5 md:py-1.5 text-sm md:text-xs font-medium capitalize transition-colors whitespace-nowrap"
                     :class="masterTab === tab ? 'bg-gold text-[#0f1117]' : 'bg-[#161922] text-[#94a3b8] hover:bg-[#1e293b]'"
                     @click="masterTab = tab; loadMasterReport()"
                     x-text="tab"></button>
           </template>
         </div>
-        <div class="ml-auto flex items-center gap-2">
+        <div class="sm:ml-auto flex items-center gap-2">
           <a :href="'/api/master/' + masterTab + '/excel' + periodQuery()"
-             class="px-3 py-1.5 text-xs font-medium bg-success text-white rounded-lg hover:bg-success/90 transition-colors flex items-center gap-1">
+             class="px-3 py-2.5 md:py-1.5 text-sm md:text-xs font-medium bg-success text-white rounded-lg hover:bg-success/90 transition-colors flex items-center gap-1">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Download
           </a>
           <a :href="'/api/master/suite/excel' + periodQuery()"
-             class="px-3 py-1.5 text-xs font-medium bg-gold text-[#0f1117] rounded-lg hover:bg-gold/90 transition-colors flex items-center gap-1">
+             class="px-3 py-2.5 md:py-1.5 text-sm md:text-xs font-medium bg-gold text-[#0f1117] rounded-lg hover:bg-gold/90 transition-colors flex items-center gap-1">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Suite ZIP
           </a>
@@ -2105,7 +2247,7 @@
             <!-- By Store Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="masterData.by_store && masterData.by_store.length > 0" x-cloak>
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Margin by Store</h3>
-              <table class="data-table">
+              <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th>Store</th>
@@ -2142,7 +2284,7 @@
             <!-- By Category Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="masterData.by_category && masterData.by_category.length > 0" x-cloak>
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Margin by Category</h3>
-              <table class="data-table">
+              <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th>Category</th>
@@ -2179,7 +2321,7 @@
             <!-- Top 30 Brands Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="masterData.top_brands && masterData.top_brands.length > 0" x-cloak>
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Top 30 Brands</h3>
-              <table class="data-table">
+              <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th>Brand</th>
@@ -2230,7 +2372,7 @@
             <!-- Deal Types Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="masterData.deal_types && masterData.deal_types.length > 0" x-cloak>
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Deal Types</h3>
-              <table class="data-table">
+              <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th>Deal Type</th>
@@ -2267,7 +2409,7 @@
             <!-- Top 50 Deals Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="masterData.top_deals && masterData.top_deals.length > 0" x-cloak>
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Top 50 Deals</h3>
-              <table class="data-table">
+              <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th>Deal Name</th>
@@ -2325,7 +2467,7 @@
             <!-- Rankings Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="masterData.rankings && masterData.rankings.length > 0" x-cloak>
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Budtender Rankings</h3>
-              <table class="data-table">
+              <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th>Budtender</th>
@@ -2398,7 +2540,7 @@
             <!-- Segments Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="masterData.segments && masterData.segments.length > 0" x-cloak>
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Customer Segments</h3>
-              <table class="data-table">
+              <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th>Segment</th>
@@ -2429,7 +2571,7 @@
             <!-- Top 50 Customers Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="masterData.top_customers && masterData.top_customers.length > 0" x-cloak>
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Top 50 Customers</h3>
-              <table class="data-table">
+              <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th class="text-center">#</th>
@@ -2495,7 +2637,7 @@
             <!-- All Rewards Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="masterData.all_rewards && masterData.all_rewards.length > 0" x-cloak>
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">All Rewards</h3>
-              <table class="data-table">
+              <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th>Reward</th>
@@ -2526,7 +2668,7 @@
             <!-- Markouts by Employee Table -->
             <div class="chart-container mb-6 overflow-x-auto" x-show="masterData.markouts_by_employee && masterData.markouts_by_employee.length > 0" x-cloak>
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Markouts by Employee</h3>
-              <table class="data-table">
+              <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th class="text-center">#</th>
@@ -2652,7 +2794,7 @@
       <!-- File List Table -->
       <div class="chart-container mb-6 overflow-x-auto" x-show="dataFiles && dataFiles.length > 0" x-cloak>
         <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Loaded Files</h3>
-        <table class="data-table">
+        <table class="data-table sticky-col">
           <thead>
             <tr>
               <th>File</th>
@@ -2717,6 +2859,7 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 function dashboard() {
   return {
     view: 'executive',
+    sidebarOpen: false,
     masterTab: 'margin',
     brandSubTab: 'dispensary',
     loading: false,
@@ -2917,6 +3060,7 @@ function dashboard() {
     switchView(v) {
       this.view = v;
       this.error = null;
+      this.sidebarOpen = false;
       this.loadCurrentView();
     },
 

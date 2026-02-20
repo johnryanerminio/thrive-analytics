@@ -929,7 +929,8 @@
     <!-- MONTH-OVER-MONTH PAGE                                       -->
     <!-- ========================================================== -->
     <section x-show="view === 'mom'" x-cloak x-data="{ momMetric: 'revenue' }">
-      <div x-show="momData" x-cloak>
+      <template x-if="momData">
+      <div>
           <!-- Period label -->
           <div class="mb-6 text-sm text-[#94a3b8] font-medium" x-text="momData.period_label"></div>
 
@@ -1121,6 +1122,7 @@
             </table>
           </div>
       </div>
+      </template>
 
       <!-- Empty state -->
       <div x-show="!momData && !loading" x-cloak class="text-center py-20 text-[#475569]">
@@ -2812,6 +2814,7 @@ function dashboard() {
     dataFiles: [],
     _charts: {},
     _brandSlugs: {},
+    _initialized: false,
 
     filteredBrands() {
       if (!this.brandSearch) return this.brands.slice(0, 30);
@@ -2833,6 +2836,8 @@ function dashboard() {
     },
 
     async init() {
+      if (this._initialized) { if (window._dbg) window._dbg('init() SKIPPED (already ran)'); return; }
+      this._initialized = true;
       if (window._dbg) window._dbg('init() started');
       // Each call catches independently so one failure doesn't break all
       const [h, b, s, p] = await Promise.all([
@@ -3237,7 +3242,8 @@ function dashboard() {
 
     _c(id, config) {
       if (window._dbg) window._dbg('_c(' + id + ') called');
-      if (this._charts[id]) { this._charts[id].destroy(); delete this._charts[id]; }
+      // Destroy any existing chart on this canvas (use Chart.js registry for reliable cleanup)
+      if (this._charts[id]) { try { this._charts[id].destroy(); } catch(e){} delete this._charts[id]; }
       const self = this;
       let attempts = 0;
       function tryRender() {
@@ -3248,13 +3254,11 @@ function dashboard() {
           if (window._dbg) window._dbg('<span style="color:#f55">_c(' + id + ') FAILED: canvas not found after ' + attempts + ' retries</span>');
           return;
         }
-        // Wait until the canvas has actual layout dimensions
-        if (el.offsetWidth === 0) {
-          if (attempts < 20) {
-            if (window._dbg && attempts <= 3) window._dbg('_c(' + id + ') waiting for layout, attempt ' + attempts);
-            setTimeout(tryRender, 150);
-            return;
-          }
+        // Wait for container to have real layout dimensions (not default 300x150)
+        const parent = el.parentElement;
+        if ((el.offsetWidth <= 300 || el.offsetHeight <= 150) && parent && parent.offsetWidth > 300 === false && attempts < 20) {
+          setTimeout(tryRender, 150);
+          return;
         }
         try {
           if (typeof Chart === 'undefined') {
@@ -3262,6 +3266,9 @@ function dashboard() {
             el.parentElement.innerHTML = '<div style="padding:40px;text-align:center;color:#a8555a;font-size:13px">Chart.js failed to load</div>';
             return;
           }
+          // Destroy any chart already on this canvas element (Chart.js 4.x registry)
+          const existing = Chart.getChart(el);
+          if (existing) { existing.destroy(); }
           if (window._dbg) window._dbg('<span style="color:#0f0">_c(' + id + ') rendering, w=' + el.offsetWidth + ' h=' + el.offsetHeight + '</span>');
           self._charts[id] = new Chart(el, config);
           if (window._dbg) window._dbg('<span style="color:#0f0">_c(' + id + ') SUCCESS</span>');
@@ -3270,8 +3277,8 @@ function dashboard() {
           el.parentElement.innerHTML = '<div style="padding:40px;text-align:center;color:#a8555a;font-size:13px">Chart error: ' + (e.message||e) + '</div>';
         }
       }
-      // Use setTimeout instead of rAF for more reliable cross-browser behavior
-      setTimeout(tryRender, 200);
+      // Wait for DOM to settle before first render attempt
+      setTimeout(tryRender, 300);
     },
 
     renderExecCharts() {

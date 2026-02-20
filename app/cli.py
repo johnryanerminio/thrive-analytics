@@ -14,12 +14,19 @@ USAGE:
 
   python -m app.cli serve                                   # Start API server
   python -m app.cli serve --port 8000
+
+  python -m app.cli export                                  # Export static site to public/
+  python -m app.cli export --output ./dist                  # Custom output directory
 """
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import re
+import shutil
 import sys
+import unicodedata
 from datetime import datetime
 from pathlib import Path
 
@@ -171,6 +178,310 @@ def cmd_master(args):
     print("=" * 70 + "\n")
 
 
+def _brand_slug(name: str) -> str:
+    """Convert brand name to a filesystem-safe slug."""
+    s = name.lower().strip()
+    s = unicodedata.normalize("NFKD", s)
+    s = re.sub(r"[^\w\s-]", "", s)
+    s = re.sub(r"[\s_]+", "-", s).strip("-")
+    return s or "unknown"
+
+
+def _write_json(path: Path, data):
+    """Write sanitised JSON to path, creating parent dirs."""
+    from app.analytics.common import sanitize_for_json
+    path.parent.mkdir(parents=True, exist_ok=True)
+    clean = sanitize_for_json(data)
+    with open(path, "w") as f:
+        json.dump(clean, f, separators=(",", ":"), default=str)
+
+
+def _period_key(pf: PeriodFilter | None) -> str:
+    if pf is None:
+        return "all"
+    return f"{pf.year}-{pf.month:02d}"
+
+
+def _checked_replace(html: str, old: str, new: str, label: str) -> str:
+    if old not in html:
+        print(f"  WARNING: Could not patch '{label}' — pattern not found")
+        return html
+    return html.replace(old, new, 1)
+
+
+def _generate_static_index(out: Path):
+    """Read app/static/index.html and patch it for static-file mode."""
+    src = Path(__file__).parent / "static" / "index.html"
+    html = src.read_text()
+
+    # --- 1. Replace api() method with static file resolver ---
+    old_api = """    async api(path, params = {}) {
+      const url = new URL(path, location.origin);
+      for (const [k, v] of Object.entries(params)) {
+        if (v !== null && v !== undefined && v !== '') url.searchParams.set(k, v);
+      }
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(await r.text().catch(() => r.statusText));
+      return r.json();
+    },"""
+
+    new_api = """    async api(path, params = {}) {
+      const url = this._resolvePath(path, params);
+      const r = await fetch(url);
+      if (!r.ok) throw new Error('Data not available for this selection');
+      return r.json();
+    },
+
+    _resolvePath(path, params) {
+      const pk = (params.period_type === 'month' && params.year && params.month)
+        ? params.year + '-' + String(params.month).padStart(2, '0')
+        : 'all';
+      if (path === '/api/health') return '/data/health.json';
+      if (path === '/api/brands') return '/data/brands.json';
+      if (path === '/api/stores') return '/data/stores.json';
+      if (path === '/api/periods') return '/data/periods.json';
+      if (path === '/api/executive-summary') return '/data/exec/' + pk + '.json';
+      if (path === '/api/month-over-month') return '/data/mom/' + pk + '.json';
+      if (path === '/api/store-performance') return '/data/stores-perf/' + pk + '.json';
+      if (path === '/api/year-end-summary') return '/data/yearend/' + (params.year || '2025') + '.json';
+      if (path.includes('/brands/') && path.endsWith('/report')) {
+        const brand = decodeURIComponent(path.split('/')[3]);
+        const slug = this._brandSlugs[brand] || brand.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        return '/data/brands/' + slug + '/report.json';
+      }
+      if (path.includes('/brands/') && path.endsWith('/facing')) {
+        const brand = decodeURIComponent(path.split('/')[3]);
+        const slug = this._brandSlugs[brand] || brand.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        return '/data/brands/' + slug + '/facing.json';
+      }
+      if (path.startsWith('/api/master/')) return '/data/master/' + path.split('/')[3] + '.json';
+      if (path === '/api/upload/files') return '/data/health.json';
+      return path;
+    },"""
+
+    html = _checked_replace(html, old_api, new_api, "api() method")
+
+    # --- 2. Add _brandSlugs to state ---
+    html = _checked_replace(html,
+        "_charts: {},",
+        "_charts: {},\n    _brandSlugs: {},",
+        "_brandSlugs state")
+
+    # --- 3. Populate _brandSlugs in init ---
+    html = _checked_replace(html,
+        "this.brands = b.brands || b || [];",
+        "this.brands = b.brands || b || [];\n      this._brandSlugs = b.brand_slugs || {};",
+        "_brandSlugs init")
+
+    # --- 4. Remove store filter from periodParams ---
+    html = _checked_replace(html,
+        "if (this.selectedStore) p.store = this.selectedStore;",
+        "// store filter disabled in static mode",
+        "selectedStore in periodParams")
+
+    # --- 5. Remove Data Manager from loadCurrentView ---
+    html = _checked_replace(html,
+        "else if (this.view === 'datamanager') this.loadDMFiles();",
+        "",
+        "datamanager in loadCurrentView")
+
+    # --- 6. Remove Data Manager nav item ---
+    dm_nav_pattern = re.compile(
+        r'\s*<!-- Data Manager -->\s*<div class="nav-item".*?</div>\s*</nav>',
+        re.DOTALL,
+    )
+    html = dm_nav_pattern.sub("\n    </nav>", html, count=1)
+
+    # --- 7. Remove the Data Manager section ---
+    dm_section_pattern = re.compile(
+        r'<!-- =+ -->\s*<!-- DATA MANAGER PAGE.*?</section>',
+        re.DOTALL,
+    )
+    html = dm_section_pattern.sub("", html, count=1)
+
+    # --- 8. Remove datamanager from pageTitle ---
+    html = html.replace(", datamanager:'Data Manager'", "")
+    html = html.replace(",datamanager:'Data Manager'", "")
+
+    # --- 9. Hide the store filter dropdowns (desktop + mobile) ---
+    # Desktop: add hidden class
+    html = _checked_replace(html,
+        'class="hidden md:block px-3 py-2 text-sm border border-muted rounded-lg bg-[#161922]',
+        'class="hidden px-3 py-2 text-sm border border-muted rounded-lg bg-[#161922]',
+        "desktop store filter hide")
+
+    # Mobile store filter row: hide
+    html = html.replace(
+        '<div class="md:hidden flex flex-wrap gap-2 mb-4">',
+        '<div class="hidden">',
+    )
+
+    # --- 10. Remove Excel download links in master reports ---
+    # Replace the download buttons container with empty div
+    html = re.sub(
+        r'<div class="flex gap-2">\s*<a :href="[^"]*master/\' \+ masterTab \+ \'/excel[^"]*"[^>]*>.*?Download.*?</a>\s*<a :href="[^"]*master/suite/excel[^"]*"[^>]*>.*?Download All.*?</a>\s*</div>',
+        '<!-- Excel downloads removed in static mode -->',
+        html,
+        flags=re.DOTALL,
+    )
+
+    # --- 11. Simplify period picker: force single-month only ---
+    html = _checked_replace(html,
+        "this.periodType = 'range';",
+        "this.periodType = 'month'; // range disabled in static mode",
+        "range period type")
+
+    out.write_text(html)
+    print(f"  Generated {out}")
+
+
+def cmd_export(args):
+    """Export pre-computed static site to output directory."""
+    from app.analytics.dashboard import (
+        executive_summary, month_over_month, store_performance, year_end_summary,
+    )
+    from app.config import INTERNAL_BRANDS
+
+    print("\n" + "=" * 70)
+    print("  THRIVE ANALYTICS — STATIC SITE EXPORT")
+    print("=" * 70)
+    print(f"  Started: {datetime.now():%Y-%m-%d %H:%M:%S}")
+
+    out = Path(args.output)
+    out.mkdir(parents=True, exist_ok=True)
+
+    # Load data
+    store = DataStore().load()
+    brands = store.brands()
+    periods = store.periods_available()
+    years = sorted(set(p["year"] for p in periods))
+
+    print(f"  {store.row_count():,} rows, {len(store.stores())} stores, {len(brands)} brands, {len(periods)} periods")
+    print(f"  Output: {out.resolve()}\n")
+
+    # Build brand slug mapping
+    slugs = {}
+    used_slugs = {}
+    for b in brands:
+        s = _brand_slug(b)
+        if s in used_slugs:
+            i = 2
+            while f"{s}-{i}" in used_slugs:
+                i += 1
+            s = f"{s}-{i}"
+        used_slugs[s] = b
+        slugs[b] = s
+
+    # --- Meta files ---
+    print("  [1/6] Meta files...")
+    _write_json(out / "data/health.json", {
+        "status": "ok",
+        "rows": store.row_count(),
+        "regular_rows": store.regular_count(),
+        "stores": len(store.stores()),
+        "brands": len(brands),
+        "periods": len(periods),
+    })
+    _write_json(out / "data/brands.json", {
+        "brands": brands,
+        "count": len(brands),
+        "internal_brands": [b for b in brands if b.upper() in INTERNAL_BRANDS],
+        "brand_slugs": slugs,
+    })
+    _write_json(out / "data/stores.json", {"stores": store.stores()})
+    _write_json(out / "data/periods.json", {"periods": periods})
+
+    # --- Dashboard views for each period ---
+    print("  [2/6] Dashboard views (exec, mom, store-perf)...")
+    period_filters = [None]  # None = all-time
+    for p in periods:
+        period_filters.append(PeriodFilter(
+            period_type=PeriodType.MONTH, year=p["year"], month=p["month"],
+        ))
+
+    for i, pf in enumerate(period_filters):
+        key = _period_key(pf)
+        label = f"all-time" if pf is None else key
+        print(f"    [{i+1}/{len(period_filters)}] {label}")
+        _write_json(out / f"data/exec/{key}.json", executive_summary(store, pf))
+        _write_json(out / f"data/mom/{key}.json", month_over_month(store, pf))
+        _write_json(out / f"data/stores-perf/{key}.json", store_performance(store, pf))
+
+    # --- Year-end summaries ---
+    print("  [3/6] Year-end summaries...")
+    for y in years:
+        print(f"    {y}")
+        _write_json(out / f"data/yearend/{y}.json", year_end_summary(store, y))
+
+    # --- Brand reports (all-time) ---
+    print(f"  [4/6] Brand reports ({len(brands)} brands)...")
+    from app.reports.brand_dispensary import generate_json as brand_disp_json
+    from app.reports.brand_facing import generate_json as brand_face_json
+
+    skipped = 0
+    for i, brand in enumerate(brands, 1):
+        if i % 25 == 0 or i == len(brands):
+            print(f"    [{i}/{len(brands)}]")
+        slug = slugs[brand]
+        try:
+            brand_df = store.get_brand(brand, None)
+            if len(brand_df) < 5:
+                skipped += 1
+                continue
+            report = brand_disp_json(store, brand, None, None)
+            _write_json(out / f"data/brands/{slug}/report.json", report)
+        except Exception as e:
+            print(f"    WARNING: {brand} dispensary report failed: {e}")
+        try:
+            facing = brand_face_json(store, brand, None)
+            _write_json(out / f"data/brands/{slug}/facing.json", facing)
+        except Exception as e:
+            pass  # facing reports may fail for small brands
+    if skipped:
+        print(f"    ({skipped} brands skipped — fewer than 5 transactions)")
+
+    # --- Master reports (all-time) ---
+    print("  [5/6] Master reports...")
+    master_modules = {
+        "margin": "app.reports.margin_report",
+        "deals": "app.reports.deal_report",
+        "budtenders": "app.reports.budtender_report",
+        "customers": "app.reports.customer_report",
+        "rewards": "app.reports.rewards_report",
+    }
+    for tab, mod_path in master_modules.items():
+        try:
+            import importlib
+            mod = importlib.import_module(mod_path)
+            data = mod.generate_json(store, None)
+            _write_json(out / f"data/master/{tab}.json", data)
+            print(f"    {tab}.json")
+        except Exception as e:
+            print(f"    WARNING: {tab} failed: {e}")
+            _write_json(out / f"data/master/{tab}.json", {"error": str(e)})
+
+    # --- Copy static assets + generate patched index.html ---
+    print("  [6/6] Static assets + index.html...")
+    static_dir = Path(__file__).parent / "static"
+    for asset in ["chart.min.js", "logo.png"]:
+        src = static_dir / asset
+        if src.exists():
+            shutil.copy2(src, out / asset)
+
+    _generate_static_index(out / "index.html")
+
+    # Summary
+    file_count = sum(1 for _ in out.rglob("*.json"))
+    total_size = sum(f.stat().st_size for f in out.rglob("*") if f.is_file())
+    print(f"\n  Done! {file_count} JSON files, {total_size / 1024 / 1024:.1f} MB total")
+    print(f"  Output: {out.resolve()}")
+    print(f"\n  Next steps:")
+    print(f"    1. Test:  python3 -m http.server 8080 -d {out}")
+    print(f"    2. Push:  git add {out} vercel.json && git push")
+    print(f"    3. Deploy on Vercel → connect repo, set output dir to '{out}'")
+    print("=" * 70 + "\n")
+
+
 def cmd_serve(args):
     """Start the API server."""
     import uvicorn
@@ -211,6 +522,11 @@ def main():
     serve_parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8000")), help="Port (default 8000)")
     serve_parser.add_argument("--reload", action="store_true", help="Enable auto-reload")
     serve_parser.set_defaults(func=cmd_serve)
+
+    # export subcommand
+    export_parser = subparsers.add_parser("export", help="Export static site (for Vercel)")
+    export_parser.add_argument("--output", default="public", help="Output directory (default: public)")
+    export_parser.set_defaults(func=cmd_export)
 
     args = parser.parse_args()
     if not args.command:

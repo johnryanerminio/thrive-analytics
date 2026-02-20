@@ -389,6 +389,12 @@ def _generate_static_index(out: Path):
         1,
     )
 
+    # --- 17. MoM always loads all-time data (comparing single months is pointless) ---
+    html = html.replace(
+        "this.momData = await this.api('/api/month-over-month', this.periodParams())",
+        "this.momData = await this.api('/api/month-over-month', {period_type: 'all'})",
+    )
+
     out.write_text(html)
     print(f"  Generated {out}")
 

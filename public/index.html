@@ -3164,7 +3164,7 @@ function dashboard() {
 
     async loadMoM() {
       this.loading = true; this.error = null;
-      try { this.momData = await this.api('/api/month-over-month', this.periodParams()); }
+      try { this.momData = await this.api('/api/month-over-month', {period_type: 'all'}); }
       catch(e) { this.error = e.message; }
       this.loading = false;
       this.$nextTick(() => this.renderMoMCharts());

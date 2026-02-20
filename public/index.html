@@ -11,11 +11,11 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
   <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.tailwindcss.com" crossorigin="anonymous"></script>
   <!-- Chart.js 4.4.6 (self-hosted — pinned version, no CDN dependency) -->
-  <script src="/chart.min.js"></script>
+  <script src="/chart.min.js" crossorigin="anonymous"></script>
   <!-- Alpine.js 3 -->
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js" crossorigin="anonymous"></script>
 
   <!-- Tailwind Config -->
   <script>
@@ -2715,20 +2715,31 @@
 (function(){
   const dbg = document.createElement('div');
   dbg.id = 'debug-panel';
-  dbg.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:200px;overflow-y:auto;background:#1a1a2e;color:#0f0;font:11px/1.4 monospace;padding:8px 12px;z-index:99999;border-top:2px solid #c8956c;';
+  dbg.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:250px;overflow-y:auto;background:#1a1a2e;color:#0f0;font:11px/1.4 monospace;padding:8px 12px;z-index:99999;border-top:2px solid #c8956c;';
   dbg.innerHTML = '<b style="color:#c8956c">DEBUG</b> (remove after fixing)<br>';
   document.body ? document.body.appendChild(dbg) : document.addEventListener('DOMContentLoaded', () => document.body.appendChild(dbg));
   window._dbg = function(msg) {
     const el = document.getElementById('debug-panel');
-    if (el) el.innerHTML += msg + '<br>';
+    if (el) { el.innerHTML += msg + '<br>'; el.scrollTop = el.scrollHeight; }
     console.log('[DBG]', msg);
   };
+  let errCount = 0;
   window.onerror = function(msg, src, line, col, err) {
-    window._dbg('<span style="color:#f55">ERROR: ' + msg + ' (line ' + line + ')</span>');
+    if (msg === 'Script error.' || msg === 'Script error') { errCount++; return; }
+    window._dbg('<span style="color:#f55">ERROR: ' + msg + ' at ' + (src||'?').split('/').pop() + ':' + line + '</span>');
   };
   window.addEventListener('unhandledrejection', function(e) {
-    window._dbg('<span style="color:#f55">PROMISE ERROR: ' + (e.reason?.message || e.reason) + '</span>');
+    window._dbg('<span style="color:#f55">PROMISE: ' + (e.reason?.message || e.reason || 'unknown') + '</span>');
   });
+  // Show cross-origin error count periodically
+  setInterval(function() {
+    if (errCount > 0) {
+      window._dbg('<span style="color:#ff0">(' + errCount + ' cross-origin "Script error" suppressed)</span>');
+      errCount = 0;
+    }
+  }, 3000);
+  // Check Chart.js status
+  window._dbg('Chart.js loaded: ' + (typeof Chart !== 'undefined') + (typeof Chart !== 'undefined' ? ' v' + Chart.version : ''));
 })();
 // === END DEBUG PANEL ===
 
@@ -3230,17 +3241,20 @@ function dashboard() {
       const self = this;
       let attempts = 0;
       function tryRender() {
+        attempts++;
         const el = document.getElementById(id);
         if (!el) {
-          if (++attempts < 10) { setTimeout(tryRender, 100); return; }
-          if (window._dbg) window._dbg('<span style="color:#f55">_c(' + id + ') FAILED: canvas not found after 10 retries</span>');
+          if (attempts < 20) { setTimeout(tryRender, 150); return; }
+          if (window._dbg) window._dbg('<span style="color:#f55">_c(' + id + ') FAILED: canvas not found after ' + attempts + ' retries</span>');
           return;
         }
         // Wait until the canvas has actual layout dimensions
-        if (el.offsetWidth === 0 && ++attempts < 10) {
-          if (window._dbg && attempts <= 3) window._dbg('_c(' + id + ') waiting for layout, attempt ' + attempts + ', offsetWidth=' + el.offsetWidth);
-          setTimeout(tryRender, 100);
-          return;
+        if (el.offsetWidth === 0) {
+          if (attempts < 20) {
+            if (window._dbg && attempts <= 3) window._dbg('_c(' + id + ') waiting for layout, attempt ' + attempts);
+            setTimeout(tryRender, 150);
+            return;
+          }
         }
         try {
           if (typeof Chart === 'undefined') {
@@ -3256,8 +3270,8 @@ function dashboard() {
           el.parentElement.innerHTML = '<div style="padding:40px;text-align:center;color:#a8555a;font-size:13px">Chart error: ' + (e.message||e) + '</div>';
         }
       }
-      // Double-defer: nextTick (Alpine DOM) → rAF (browser layout) → render
-      requestAnimationFrame(tryRender);
+      // Use setTimeout instead of rAF for more reliable cross-browser behavior
+      setTimeout(tryRender, 200);
     },
 
     renderExecCharts() {

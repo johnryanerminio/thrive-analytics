@@ -1122,6 +1122,7 @@
             </table>
           </div>
       </div>
+
       </template>
 
       <!-- Empty state -->
@@ -2198,6 +2199,13 @@
                     x-text="tab"></button>
           </template>
         </div>
+        <select x-model="masterStore" @change="loadMasterReport()"
+                class="px-3 py-2.5 md:py-1.5 text-sm border border-muted rounded-lg bg-[#161922] text-[#cbd5e1] focus:outline-none focus:border-gold">
+          <option value="">All Stores</option>
+          <template x-for="s in stores" :key="s">
+            <option :value="s" x-text="s.replace('Thrive Cannabis ','').replace('Thrive ','')"></option>
+          </template>
+        </select>
         <div class="sm:ml-auto flex items-center gap-2">
           <a :href="'/api/master/' + masterTab + '/excel' + periodQuery()"
              class="px-3 py-2.5 md:py-1.5 text-sm md:text-xs font-medium bg-success text-white rounded-lg hover:bg-success/90 transition-colors flex items-center gap-1">
@@ -2782,6 +2790,8 @@ function dashboard() {
     dataFiles: [],
     _charts: {},
     _brandSlugs: {},
+    _storeSlugs: {},
+    masterStore: '',
     _initialized: false,
 
     filteredBrands() {
@@ -2816,6 +2826,7 @@ function dashboard() {
       if (h) this.health = h;
       this.brands = b.brands || b || [];
       this._brandSlugs = b.brand_slugs || {};
+      this._storeSlugs = s.store_slugs || {};
       this.internalBrands = new Set((b.internal_brands || []).map(x => x.toUpperCase()));
       this.stores = s.stores || s || [];
       this.periods = p.periods || p || [];
@@ -2862,7 +2873,11 @@ function dashboard() {
         const slug = this._brandSlugs[brand] || brand.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
         return '/data/brands/' + slug + '/facing.json';
       }
-      if (path.startsWith('/api/master/')) return '/data/master/' + path.split('/')[3] + '.json';
+      if (path.startsWith('/api/master/')) {
+        const tab = path.split('/')[3];
+        if (params.store && this._storeSlugs[params.store]) return '/data/master/' + tab + '/' + this._storeSlugs[params.store] + '.json';
+        return '/data/master/' + tab + '.json';
+      }
       if (path === '/api/upload/files') return '/data/health.json';
       return path;
     },
@@ -3191,7 +3206,8 @@ function dashboard() {
 
     async loadMasterReport() {
       this.loading = true; this.error = null; this.masterData = null;
-      try { this.masterData = this._normalizeMaster(await this.api('/api/master/'+this.masterTab, this.periodParams()), this.masterTab); }
+      const mp = this.periodParams(); if (this.masterStore) mp.store = this.masterStore;
+      try { this.masterData = this._normalizeMaster(await this.api('/api/master/'+this.masterTab, mp), this.masterTab); }
       catch(e) { this.error = e.message; }
       this.loading = false;
     },
@@ -3205,20 +3221,19 @@ function dashboard() {
     },
 
     _c(id, config) {
-      // Destroy any existing chart on this canvas
       if (this._charts[id]) { try { this._charts[id].destroy(); } catch(e){} delete this._charts[id]; }
       const self = this;
       let attempts = 0;
       function tryRender() {
-        attempts++;
         const el = document.getElementById(id);
         if (!el) {
-          if (attempts < 20) { setTimeout(tryRender, 150); return; }
+          if (++attempts < 10) { setTimeout(tryRender, 100); return; }
+          console.error('Chart canvas not found after retries:', id);
           return;
         }
-        // Wait for container to have real layout dimensions
-        if (el.offsetWidth === 0 && attempts < 20) {
-          setTimeout(tryRender, 150);
+        // Wait until the canvas has actual layout dimensions
+        if (el.offsetWidth === 0 && ++attempts < 10) {
+          setTimeout(tryRender, 100);
           return;
         }
         try {
@@ -3226,16 +3241,14 @@ function dashboard() {
             el.parentElement.innerHTML = '<div style="padding:40px;text-align:center;color:#a8555a;font-size:13px">Chart.js failed to load</div>';
             return;
           }
-          // Destroy any chart already on this canvas (Chart.js 4.x registry)
-          const existing = Chart.getChart(el);
-          if (existing) existing.destroy();
+          const existing = Chart.getChart(el); if (existing) existing.destroy();
           self._charts[id] = new Chart(el, config);
         } catch(e) {
           console.error('Chart render failed:', id, e);
           el.parentElement.innerHTML = '<div style="padding:40px;text-align:center;color:#a8555a;font-size:13px">Chart error: ' + (e.message||e) + '</div>';
         }
       }
-      // Wait for DOM to settle before first render attempt
+      // Double-defer: nextTick (Alpine DOM) → rAF (browser layout) → render
       setTimeout(tryRender, 300);
     },
 

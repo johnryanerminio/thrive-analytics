@@ -254,7 +254,11 @@ def _generate_static_index(out: Path):
         const slug = this._brandSlugs[brand] || brand.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
         return '/data/brands/' + slug + '/facing.json';
       }
-      if (path.startsWith('/api/master/')) return '/data/master/' + path.split('/')[3] + '.json';
+      if (path.startsWith('/api/master/')) {
+        const tab = path.split('/')[3];
+        if (params.store && this._storeSlugs[params.store]) return '/data/master/' + tab + '/' + this._storeSlugs[params.store] + '.json';
+        return '/data/master/' + tab + '.json';
+      }
       if (path === '/api/upload/files') return '/data/health.json';
       return path;
     },"""
@@ -264,13 +268,13 @@ def _generate_static_index(out: Path):
     # --- 2. Add _brandSlugs to state ---
     html = _checked_replace(html,
         "_charts: {},",
-        "_charts: {},\n    _brandSlugs: {},",
+        "_charts: {},\n    _brandSlugs: {},\n    _storeSlugs: {},\n    masterStore: '',\n    _initialized: false,",
         "_brandSlugs state")
 
     # --- 3. Populate _brandSlugs in init ---
     html = _checked_replace(html,
         "this.brands = b.brands || b || [];",
-        "this.brands = b.brands || b || [];\n      this._brandSlugs = b.brand_slugs || {};",
+        "this.brands = b.brands || b || [];\n      this._brandSlugs = b.brand_slugs || {};\n      this._storeSlugs = s.store_slugs || {};",
         "_brandSlugs init")
 
     # --- 4. Remove store filter from periodParams ---
@@ -316,7 +320,26 @@ def _generate_static_index(out: Path):
         '<div class="hidden">',
     )
 
-    # --- 10. Remove Excel download links in master reports ---
+    # --- 10. Add store filter dropdown to master reports ---
+    master_store_dropdown = """<select x-model="masterStore" @change="loadMasterReport()"
+                class="px-3 py-2.5 md:py-1.5 text-sm border border-muted rounded-lg bg-[#161922] text-[#cbd5e1] focus:outline-none focus:border-gold">
+          <option value="">All Stores</option>
+          <template x-for="s in stores" :key="s">
+            <option :value="s" x-text="s.replace('Thrive Cannabis ','').replace('Thrive ','')"></option>
+          </template>
+        </select>"""
+    html = _checked_replace(html,
+        '<div class="sm:ml-auto flex items-center gap-2">',
+        master_store_dropdown + '\n        <div class="sm:ml-auto flex items-center gap-2">',
+        "master store dropdown")
+
+    # --- 11. Pass masterStore in loadMasterReport ---
+    html = _checked_replace(html,
+        "try { this.masterData = this._normalizeMaster(await this.api('/api/master/'+this.masterTab, this.periodParams()), this.masterTab); }",
+        "const mp = this.periodParams(); if (this.masterStore) mp.store = this.masterStore;\n      try { this.masterData = this._normalizeMaster(await this.api('/api/master/'+this.masterTab, mp), this.masterTab); }",
+        "masterStore in loadMasterReport")
+
+    # --- 12. Remove Excel download links in master reports ---
     # Replace the download buttons container with empty div
     html = re.sub(
         r'<div class="flex gap-2">\s*<a :href="[^"]*master/\' \+ masterTab \+ \'/excel[^"]*"[^>]*>.*?Download.*?</a>\s*<a :href="[^"]*master/suite/excel[^"]*"[^>]*>.*?Download All.*?</a>\s*</div>',
@@ -325,11 +348,46 @@ def _generate_static_index(out: Path):
         flags=re.DOTALL,
     )
 
-    # --- 11. Simplify period picker: force single-month only ---
+    # --- 13. Simplify period picker: force single-month only ---
     html = _checked_replace(html,
         "this.periodType = 'range';",
         "this.periodType = 'month'; // range disabled in static mode",
         "range period type")
+
+    # --- 14. Add init() guard to prevent double initialization ---
+    html = _checked_replace(html,
+        "async init() {\n      // Each call catches independently",
+        "async init() {\n      if (this._initialized) return;\n      this._initialized = true;\n      // Each call catches independently",
+        "init guard")
+
+    # --- 15. Fix _c() chart function: use Chart.getChart for proper cleanup ---
+    html = html.replace(
+        "if (this._charts[id]) { this._charts[id].destroy(); delete this._charts[id]; }",
+        "if (this._charts[id]) { try { this._charts[id].destroy(); } catch(e){} delete this._charts[id]; }",
+    )
+    # Add Chart.getChart cleanup before creating new chart
+    html = html.replace(
+        "self._charts[id] = new Chart(el, config);",
+        "const existing = Chart.getChart(el); if (existing) existing.destroy();\n          self._charts[id] = new Chart(el, config);",
+    )
+    # Use setTimeout instead of requestAnimationFrame for chart rendering
+    html = html.replace(
+        "requestAnimationFrame(tryRender);",
+        "setTimeout(tryRender, 300);",
+    )
+
+    # --- 16. Fix MoM section: use x-if instead of x-show for data guard ---
+    html = html.replace(
+        '<div x-show="momData" x-cloak>\n          <!-- Period label -->',
+        '<template x-if="momData">\n      <div>\n          <!-- Period label -->',
+        1,
+    )
+    # Close the template tag before the empty state
+    html = html.replace(
+        '      <!-- Empty state -->\n      <div x-show="!momData && !loading"',
+        '      </template>\n\n      <!-- Empty state -->\n      <div x-show="!momData && !loading"',
+        1,
+    )
 
     out.write_text(html)
     print(f"  Generated {out}")
@@ -440,8 +498,9 @@ def cmd_export(args):
     if skipped:
         print(f"    ({skipped} brands skipped — fewer than 5 transactions)")
 
-    # --- Master reports (all-time) ---
+    # --- Master reports (all-time + per-store) ---
     print("  [5/6] Master reports...")
+    import importlib
     master_modules = {
         "margin": "app.reports.margin_report",
         "deals": "app.reports.deal_report",
@@ -449,16 +508,34 @@ def cmd_export(args):
         "customers": "app.reports.customer_report",
         "rewards": "app.reports.rewards_report",
     }
+    store_names = store.stores()
+    store_slugs = {s: _brand_slug(s) for s in store_names}
+    # Write store slug mapping into stores.json for frontend lookup
+    _write_json(out / "data/stores.json", {
+        "stores": store_names,
+        "store_slugs": store_slugs,
+    })
     for tab, mod_path in master_modules.items():
+        mod = importlib.import_module(mod_path)
+        # All-stores version
         try:
-            import importlib
-            mod = importlib.import_module(mod_path)
             data = mod.generate_json(store, None)
             _write_json(out / f"data/master/{tab}.json", data)
             print(f"    {tab}.json")
         except Exception as e:
             print(f"    WARNING: {tab} failed: {e}")
             _write_json(out / f"data/master/{tab}.json", {"error": str(e)})
+        # Per-store versions
+        for sname in store_names:
+            slug = store_slugs[sname]
+            try:
+                pf = PeriodFilter(period_type=PeriodType.ALL, store=sname)
+                data = mod.generate_json(store, pf)
+                _write_json(out / f"data/master/{tab}/{slug}.json", data)
+            except Exception as e:
+                print(f"    WARNING: {tab}/{slug} failed: {e}")
+                _write_json(out / f"data/master/{tab}/{slug}.json", {"error": str(e)})
+        print(f"      + {len(store_names)} store files")
 
     # --- Copy static assets + generate patched index.html ---
     print("  [6/6] Static assets + index.html...")

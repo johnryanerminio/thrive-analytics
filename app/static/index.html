@@ -1604,8 +1604,7 @@
 
       <!-- ====== DISPENSARY SUB-TAB ====== -->
       <div x-show="brandSubTab === 'dispensary'" x-cloak>
-        <template x-if="brandReport">
-          <div>
+        <div x-show="brandReport" x-cloak>
             <!-- KPI Cards: Row 1 — Sales Performance -->
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
               <div class="kpi-card">
@@ -1917,7 +1916,6 @@
               </div>
             </div>
           </div>
-        </template>
 
         <!-- Empty state - dispensary -->
         <div x-show="!brandReport && !loading" x-cloak class="text-center py-20 text-[#475569]">
@@ -1931,8 +1929,7 @@
 
       <!-- ====== FACING SUB-TAB ====== -->
       <div x-show="brandSubTab === 'facing'" x-cloak>
-        <template x-if="facingReport">
-          <div>
+        <div x-show="facingReport" x-cloak>
             <!-- 6 KPI Cards -->
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
               <div class="kpi-card">
@@ -2190,7 +2187,6 @@
               </div>
             </div>
           </div>
-        </template>
 
         <!-- Empty state - facing -->
         <div x-show="!facingReport && !loading" x-cloak class="text-center py-20 text-[#475569]">

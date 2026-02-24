@@ -3331,10 +3331,54 @@ function dashboard() {
       this.$nextTick(() => this.renderYearEndCharts());
     },
 
+    _filterBrandByPeriod(raw) {
+      if (!raw || !raw.trend?.length || !this.startYear) return raw;
+      const sYM = this.startYear * 100 + this.startMonth;
+      const eYM = this.endYear ? this.endYear * 100 + this.endMonth : this.startYear * 100 + this.startMonth;
+      raw.trend = raw.trend.filter(t => {
+        const [y, m] = t.period.split('-').map(Number);
+        const ym = y * 100 + m;
+        return ym >= sYM && ym <= eYM;
+      });
+      const n = raw.trend.length;
+      if (n) {
+        const s = raw.summary || raw.kpis || {};
+        const tr = raw.trend.reduce((a,t) => a + t.revenue, 0);
+        const tc = raw.trend.reduce((a,t) => a + t.cost, 0);
+        const tp = raw.trend.reduce((a,t) => a + t.profit, 0);
+        const tu = raw.trend.reduce((a,t) => a + t.units, 0);
+        s.total_revenue = tr;
+        s.total_cost = tc;
+        s.total_profit = tp;
+        s.total_units = tu;
+        s.overall_margin = tr ? Math.round(tp / tr * 1000) / 10 : 0;
+        s.months_count = n;
+        s.avg_monthly_cost = Math.round(tc / n * 100) / 100;
+        s.cost_per_unit = tu ? Math.round(tc / tu * 100) / 100 : 0;
+        raw.summary = s;
+      }
+      for (let i = 0; i < raw.trend.length; i++) {
+        if (i === 0) {
+          raw.trend[i].revenue_change_pct = null;
+          raw.trend[i].units_change_pct = null;
+          raw.trend[i].margin_change_pts = null;
+        } else {
+          const prev = raw.trend[i-1], cur = raw.trend[i];
+          cur.revenue_change_pct = prev.revenue ? Math.round((cur.revenue - prev.revenue) / prev.revenue * 1000) / 10 : null;
+          cur.units_change_pct = prev.units ? Math.round((cur.units - prev.units) / prev.units * 1000) / 10 : null;
+          cur.margin_change_pts = Math.round((cur.margin - prev.margin) * 10) / 10;
+        }
+      }
+      return raw;
+    },
+
     async loadBrandReport() {
       if (!this.selectedBrand) return;
       this.loading = true; this.error = null; this.brandReport = null;
-      try { this.brandReport = this._normalizeBrandReport(await this.api('/api/brands/'+encodeURIComponent(this.selectedBrand)+'/report', this.periodParams())); }
+      try {
+        const raw = await this.api('/api/brands/'+encodeURIComponent(this.selectedBrand)+'/report', this.periodParams());
+        this.brandReport = this._normalizeBrandReport(this._filterBrandByPeriod(raw));
+      }
       catch(e) { this.error = e.message; }
       this.loading = false;
       this.$nextTick(() => this.renderBrandCharts());
@@ -3343,7 +3387,10 @@ function dashboard() {
     async loadFacingReport() {
       if (!this.selectedBrand) return;
       this.loading = true; this.error = null; this.facingReport = null;
-      try { this.facingReport = this._normalizeFacingReport(await this.api('/api/brands/'+encodeURIComponent(this.selectedBrand)+'/facing', this.periodParams())); }
+      try {
+        const raw = await this.api('/api/brands/'+encodeURIComponent(this.selectedBrand)+'/facing', this.periodParams());
+        this.facingReport = this._normalizeFacingReport(this._filterBrandByPeriod(raw));
+      }
       catch(e) { this.error = e.message; }
       this.loading = false;
       this.$nextTick(() => this.renderFacingCharts());

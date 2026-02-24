@@ -3501,7 +3501,7 @@ function dashboard() {
       this._c('chart-store-revenue', {
         type: 'bar',
         data: { labels: s.map(x=>x.name.replace('Thrive Cannabis ','').replace('Thrive ','')),
-          datasets: [{label:'Revenue',data:s.map(x=>x.revenue),backgroundColor:s.map(x=>x.margin>=avg?'#22C55E':'#F43F5E'),borderRadius:6}] },
+          datasets: [{label:'Revenue',data:s.map(x=>x.revenue),backgroundColor:'#38BDF8',borderRadius:6}] },
         options: { indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{ticks:{callback:v=>'$'+(v>=1e6?(v/1e6).toFixed(1)+'M':(v/1e3).toFixed(0)+'K')}}} }
       });
     },

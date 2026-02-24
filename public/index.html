@@ -3181,12 +3181,115 @@ function dashboard() {
     async loadExecSummary() {
       this.loading = true; this.error = null;
       try {
-        const raw = await this.api('/api/executive-summary', this.periodParams());
-        this.execData = this._filterExecByPeriod(raw);
+        if (this.periodType === 'range' && this.startYear && this.endYear) {
+          this.execData = await this._loadExecRange();
+        } else {
+          this.execData = await this.api('/api/executive-summary', this.periodParams());
+        }
       }
       catch(e) { this.error = e.message; }
       this.loading = false;
       this.$nextTick(() => this.renderExecCharts());
+    },
+
+    async _loadExecRange() {
+      // Build list of YYYY-MM keys for the range
+      const months = [];
+      let y = this.startYear, m = this.startMonth;
+      while (y < this.endYear || (y === this.endYear && m <= this.endMonth)) {
+        months.push(y + '-' + String(m).padStart(2, '0'));
+        m++; if (m > 12) { m = 1; y++; }
+      }
+      // Fetch all month files in parallel
+      const results = await Promise.all(months.map(async pk => {
+        try {
+          const r = await fetch('/data/exec/' + pk + '.json');
+          const ct = r.headers.get('content-type') || '';
+          if (r.ok && ct.includes('application/json')) return r.json();
+        } catch(e) {}
+        return null;
+      }));
+      const valid = results.filter(Boolean);
+      if (!valid.length) throw new Error('No data available for this range');
+      // Aggregate
+      const trend = valid.flatMap(d => d.monthly_trend || []);
+      const n = valid.length;
+      const totRev = valid.reduce((a,d) => a + (d.kpis?.total_revenue || 0), 0);
+      const totProfit = valid.reduce((a,d) => a + (d.kpis?.net_profit || 0), 0);
+      const totUnits = valid.reduce((a,d) => a + (d.kpis?.total_units || 0), 0);
+      const totTx = valid.reduce((a,d) => a + (d.kpis?.total_transactions || 0), 0);
+      const totDisc = valid.reduce((a,d) => a + (d.kpis?.total_discounts || 0), 0);
+      const totCust = valid.reduce((a,d) => a + (d.kpis?.unique_customers || 0), 0);
+      const fpPct = valid.reduce((a,d) => a + (d.kpis?.full_price_pct || 0), 0) / n;
+      // Merge top_categories by name
+      const catMap = {};
+      valid.forEach(d => (d.top_categories || []).forEach(c => {
+        if (!catMap[c.name]) catMap[c.name] = { name: c.name, revenue: 0, margin_sum: 0, cnt: 0 };
+        catMap[c.name].revenue += c.revenue;
+        catMap[c.name].margin_sum += c.margin * c.revenue;
+        catMap[c.name].cnt++;
+      }));
+      const cats = Object.values(catMap).map(c => ({
+        name: c.name, revenue: c.revenue,
+        margin: c.revenue ? Math.round(c.margin_sum / c.revenue * 10) / 10 : 0,
+        pct_of_total: totRev ? Math.round(c.revenue / totRev * 1000) / 10 : 0
+      })).sort((a,b) => b.revenue - a.revenue);
+      // Merge top_stores by name
+      const storeMap = {};
+      valid.forEach(d => (d.top_stores || []).forEach(s => {
+        if (!storeMap[s.name]) storeMap[s.name] = { name: s.name, revenue: 0, margin_sum: 0, units: 0 };
+        storeMap[s.name].revenue += s.revenue;
+        storeMap[s.name].margin_sum += s.margin * s.revenue;
+        storeMap[s.name].units += s.units;
+      }));
+      const stores = Object.values(storeMap).map(s => ({
+        name: s.name, revenue: s.revenue, units: s.units,
+        margin: s.revenue ? Math.round(s.margin_sum / s.revenue * 10) / 10 : 0
+      })).sort((a,b) => b.revenue - a.revenue);
+      // Merge sales_mix
+      const fpRev = valid.reduce((a,d) => a + (d.sales_mix?.full_price_revenue || 0), 0);
+      const discRev = valid.reduce((a,d) => a + (d.sales_mix?.discounted_revenue || 0), 0);
+      const fpMarginSum = valid.reduce((a,d) => a + (d.sales_mix?.full_price_margin || 0) * (d.sales_mix?.full_price_revenue || 0), 0);
+      const discMarginSum = valid.reduce((a,d) => a + (d.sales_mix?.discounted_margin || 0) * (d.sales_mix?.discounted_revenue || 0), 0);
+      const totalMixRev = fpRev + discRev;
+      const salesMix = {
+        full_price_pct: totalMixRev ? Math.round(fpRev / totalMixRev * 1000) / 10 : 0,
+        discounted_pct: totalMixRev ? Math.round(discRev / totalMixRev * 1000) / 10 : 0,
+        full_price_revenue: fpRev, discounted_revenue: discRev,
+        full_price_margin: fpRev ? Math.round(fpMarginSum / fpRev * 10) / 10 : 0,
+        discounted_margin: discRev ? Math.round(discMarginSum / discRev * 10) / 10 : 0,
+        health: (totalMixRev && fpRev / totalMixRev < 0.35) ? 'watch' : 'ok'
+      };
+      salesMix.margin_gap_pts = Math.round((salesMix.full_price_margin - salesMix.discounted_margin) * 10) / 10;
+      // Merge excluded_transactions
+      const exMap = {};
+      valid.forEach(d => (d.excluded_transactions?.breakdown || []).forEach(b => {
+        if (!exMap[b.type]) exMap[b.type] = { type: b.type, count: 0, value: 0, units: 0 };
+        exMap[b.type].count += b.count; exMap[b.type].value += b.value; exMap[b.type].units += b.units;
+      }));
+      const exBreakdown = Object.values(exMap);
+      const exTotal = exBreakdown.reduce((a,b) => a + b.count, 0);
+      const exValue = exBreakdown.reduce((a,b) => a + b.value, 0);
+      const exUnits = exBreakdown.reduce((a,b) => a + b.units, 0);
+      // Best/worst month
+      const best = trend.reduce((a,t) => t.revenue > a.revenue ? t : a, trend[0]);
+      const worst = trend.reduce((a,t) => t.revenue < a.revenue ? t : a, trend[0]);
+      return {
+        period_label: this.periodLabel,
+        kpis: {
+          total_revenue: totRev, net_profit: totProfit, blended_margin: totRev ? Math.round(totProfit / totRev * 1000) / 10 : 0,
+          total_units: totUnits, total_transactions: totTx, total_discounts: totDisc,
+          full_price_pct: Math.round(fpPct * 10) / 10, avg_basket: totTx ? Math.round(totRev / totTx * 100) / 100 : 0,
+          unique_customers: totCust, stores: valid[0]?.kpis?.stores || 7, brands: valid[0]?.kpis?.brands || 312
+        },
+        secondary_kpis: {
+          avg_monthly_revenue: Math.round(totRev / n), avg_monthly_profit: Math.round(totProfit / n),
+          best_month: { label: best?.label, revenue: best?.revenue }, worst_month: { label: worst?.label, revenue: worst?.revenue }
+        },
+        monthly_trend: trend, top_categories: cats, top_stores: stores, sales_mix: salesMix,
+        excluded_transactions: { total: exTotal, total_value: exValue, total_units: exUnits, breakdown: exBreakdown },
+        insights: valid[valid.length - 1]?.insights || []
+      };
     },
 
     async loadMoM() {
@@ -3255,10 +3358,58 @@ function dashboard() {
 
     async loadStorePerf() {
       this.loading = true; this.error = null;
-      try { this.storeData = this._filterExecByPeriod(await this.api('/api/store-performance', this.periodParams())); }
+      try {
+        if (this.periodType === 'range' && this.startYear && this.endYear) {
+          this.storeData = await this._loadStoreRange();
+        } else {
+          this.storeData = await this.api('/api/store-performance', this.periodParams());
+        }
+      }
       catch(e) { this.error = e.message; }
       this.loading = false;
       this.$nextTick(() => this.renderStoreCharts());
+    },
+
+    async _loadStoreRange() {
+      const months = [];
+      let y = this.startYear, m = this.startMonth;
+      while (y < this.endYear || (y === this.endYear && m <= this.endMonth)) {
+        months.push(y + '-' + String(m).padStart(2, '0'));
+        m++; if (m > 12) { m = 1; y++; }
+      }
+      const results = await Promise.all(months.map(async pk => {
+        try {
+          const r = await fetch('/data/stores-perf/' + pk + '.json');
+          const ct = r.headers.get('content-type') || '';
+          if (r.ok && ct.includes('application/json')) return r.json();
+        } catch(e) {}
+        return null;
+      }));
+      const valid = results.filter(Boolean);
+      if (!valid.length) throw new Error('No store data for this range');
+      const storeMap = {};
+      valid.forEach(d => (d.stores || []).forEach(s => {
+        if (!storeMap[s.name]) storeMap[s.name] = { name: s.name, revenue: 0, profit: 0, units: 0, transactions: 0, fp_sum: 0, cnt: 0, customers: 0 };
+        const st = storeMap[s.name];
+        st.revenue += s.revenue; st.profit += s.profit; st.units += s.units;
+        st.transactions += s.transactions; st.fp_sum += s.full_price_pct; st.cnt++;
+        st.customers += s.unique_customers;
+      }));
+      const stores = Object.values(storeMap).map((s, i) => ({
+        name: s.name, rank: i + 1, revenue: s.revenue, profit: s.profit,
+        margin: s.revenue ? Math.round(s.profit / s.revenue * 1000) / 10 : 0,
+        share_pct: 0, units: s.units, transactions: s.transactions,
+        full_price_pct: s.cnt ? Math.round(s.fp_sum / s.cnt * 10) / 10 : 0,
+        unique_customers: s.customers
+      })).sort((a,b) => b.revenue - a.revenue);
+      const totRev = stores.reduce((a,s) => a + s.revenue, 0);
+      stores.forEach((s, i) => { s.rank = i + 1; s.share_pct = totRev ? Math.round(s.revenue / totRev * 1000) / 10 : 0; });
+      const avgMargin = totRev ? Math.round(stores.reduce((a,s) => a + s.profit, 0) / totRev * 1000) / 10 : 0;
+      return {
+        period_label: this.periodLabel, stores,
+        company_avg_margin: avgMargin,
+        top_performer: stores[0]?.name || '', bottom_performer: stores[stores.length - 1]?.name || ''
+      };
     },
 
     async loadYearEnd() {

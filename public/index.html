@@ -2853,8 +2853,10 @@ function dashboard() {
     async api(path, params = {}) {
       const url = this._resolvePath(path, params);
       const r = await fetch(url);
-      if (!r.ok) {
-        // Fallback: if a per-year brand file doesn't exist, load the all-time file
+      const ct = r.headers.get('content-type') || '';
+      const isJson = ct.includes('application/json');
+      if (!r.ok || !isJson) {
+        // Fallback: if a per-year brand file is missing (Vercel returns HTML via rewrite), load all-time file
         if (path.includes('/brands/') && (path.endsWith('/report') || path.endsWith('/facing'))) {
           const brand = decodeURIComponent(path.split('/')[3]);
           const slug = this._brandSlugs[brand] || brand.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');

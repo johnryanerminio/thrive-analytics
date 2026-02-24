@@ -228,7 +228,9 @@ def _generate_static_index(out: Path):
     new_api = """    async api(path, params = {}) {
       const url = this._resolvePath(path, params);
       const r = await fetch(url);
-      if (!r.ok) {
+      const ct = r.headers.get('content-type') || '';
+      const isJson = ct.includes('application/json');
+      if (!r.ok || !isJson) {
         if (path.includes('/brands/') && (path.endsWith('/report') || path.endsWith('/facing'))) {
           const brand = decodeURIComponent(path.split('/')[3]);
           const slug = this._brandSlugs[brand] || brand.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');

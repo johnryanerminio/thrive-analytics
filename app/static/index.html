@@ -1280,6 +1280,20 @@
                     <td class="text-xs truncate max-w-[120px]" x-text="s.top_category || '-'"></td>
                   </tr>
                 </template>
+                <tr class="total-row" x-show="storeData.stores?.length">
+                  <td></td>
+                  <td class="font-semibold">Total</td>
+                  <td class="text-right font-semibold" x-text="fmtCurrency(storeData.stores?.reduce((a,s) => a + (s.revenue||0), 0))"></td>
+                  <td class="text-right font-semibold">100%</td>
+                  <td class="text-right font-semibold" x-text="fmtCurrency(storeData.stores?.reduce((a,s) => a + (s.profit||0), 0))"></td>
+                  <td class="text-right font-semibold"
+                      x-text="fmtPct(storeData.stores?.reduce((a,s) => a + (s.revenue||0), 0) ? storeData.stores?.reduce((a,s) => a + (s.profit||0), 0) / storeData.stores?.reduce((a,s) => a + (s.revenue||0), 0) * 100 : 0)"></td>
+                  <td class="text-right font-semibold" x-text="fmtN(storeData.stores?.reduce((a,s) => a + (s.units||0), 0))"></td>
+                  <td class="text-right font-semibold"
+                      x-text="fmtPct(storeData.stores?.reduce((a,s) => a + (s.full_price_pct||0), 0) / (storeData.stores?.length || 1))"></td>
+                  <td></td>
+                  <td></td>
+                </tr>
               </tbody>
             </table>
           </div>

@@ -3164,7 +3164,63 @@ function dashboard() {
 
     async loadMoM() {
       this.loading = true; this.error = null;
-      try { this.momData = await this.api('/api/month-over-month', {period_type: 'all'}); }
+      try {
+        const raw = await this.api('/api/month-over-month', {period_type: 'all'});
+        // Filter to selected date range and rebuild YoY comparison
+        if (this.endYear && this.startYear && raw.months) {
+          const sYM = this.startYear * 100 + this.startMonth;
+          const eYM = this.endYear * 100 + this.endMonth;
+          raw.months = raw.months.filter(m => {
+            const ym = m.year * 100 + m.month_num;
+            return ym >= sYM && ym <= eYM;
+          });
+          // Rebuild totals from filtered months
+          const n = raw.months.length;
+          if (n) {
+            const tr = raw.months.reduce((s,m) => s + m.revenue, 0);
+            const tp = raw.months.reduce((s,m) => s + m.profit, 0);
+            raw.totals = {
+              revenue: tr, profit: tp,
+              units: raw.months.reduce((s,m) => s + m.units, 0),
+              transactions: raw.months.reduce((s,m) => s + m.transactions, 0),
+              avg_margin: tr ? Math.round(tp / tr * 1000) / 10 : 0,
+              avg_full_price_pct: Math.round(raw.months.reduce((s,m) => s + m.full_price_pct, 0) / n * 10) / 10,
+            };
+            raw.best_month = raw.months.reduce((b,m) => m.revenue > (b.revenue||0) ? m : b, {});
+            raw.best_month = {label: raw.best_month.label, revenue: raw.best_month.revenue};
+          }
+          // Rebuild YoY: pick last two distinct years in filtered range
+          const years = [...new Set(raw.months.map(m => m.year))].sort((a,b) => a-b);
+          if (years.length >= 2) {
+            const y1 = years[years.length - 2], y2 = years[years.length - 1];
+            const byYM = {};
+            for (const m of raw.months) byYM[m.year * 100 + m.month_num] = m;
+            const yoy = [];
+            const MN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            for (let mn = 1; mn <= 12; mn++) {
+              const d1 = byYM[y1 * 100 + mn], d2 = byYM[y2 * 100 + mn];
+              if (!d1 && !d2) continue;
+              yoy.push({
+                month_label: MN[mn-1], month_num: mn, y1, y2,
+                y1_revenue: d1?.revenue ?? null, y2_revenue: d2?.revenue ?? null,
+                y1_profit: d1?.profit ?? null, y2_profit: d2?.profit ?? null,
+                y1_margin: d1 ? Math.round(d1.margin*10)/10 : null, y2_margin: d2 ? Math.round(d2.margin*10)/10 : null,
+                y1_units: d1?.units ?? null, y2_units: d2?.units ?? null,
+                y1_full_price_pct: d1 ? Math.round(d1.full_price_pct*10)/10 : null,
+                y2_full_price_pct: d2 ? Math.round(d2.full_price_pct*10)/10 : null,
+                revenue_change_pct: d1 && d2 && d1.revenue ? Math.round((d2.revenue - d1.revenue) / d1.revenue * 10000) / 100 : null,
+                profit_change_pct: d1 && d2 && d1.profit ? Math.round((d2.profit - d1.profit) / d1.profit * 10000) / 100 : null,
+                margin_change_pts: d1 && d2 ? Math.round((d2.margin - d1.margin) * 10) / 10 : null,
+                full_price_change_pts: d1 && d2 ? Math.round((d2.full_price_pct - d1.full_price_pct) * 10) / 10 : null,
+              });
+            }
+            raw.yoy_comparison = yoy;
+          } else {
+            raw.yoy_comparison = [];
+          }
+        }
+        this.momData = raw;
+      }
       catch(e) { this.error = e.message; }
       this.loading = false;
       this.$nextTick(() => this.renderMoMCharts());

@@ -25,7 +25,7 @@
           colors: {
             primary:     { DEFAULT: '#E5E7EB', dark: '#ffffff' },
             gold:        { DEFAULT: '#38BDF8', light: 'rgba(56,189,248,0.15)' },
-            success:     { DEFAULT: '#22C55E' },
+            success:     { DEFAULT: '#06B6D4' },
             destructive: { DEFAULT: '#F43F5E' },
             cream:       { DEFAULT: '#0B0F14' },
             card:        { DEFAULT: '#111827' },
@@ -61,11 +61,11 @@
       --accent-copper: #38BDF8;
       --accent-copper-bg: rgba(56,189,248,0.06);
       --accent-copper-border: rgba(56,189,248,0.15);
-      --color-positive: #22C55E;
+      --color-positive: #06B6D4;
       --color-negative: #F43F5E;
       --color-warning: #F59E0B;
       --color-info: #38BDF8;
-      --color-positive-bg: rgba(34,197,94,0.1);
+      --color-positive-bg: rgba(6,182,212,0.1);
       --color-negative-bg: rgba(244,63,94,0.1);
       --color-warning-bg: rgba(245,158,11,0.1);
     }
@@ -246,7 +246,7 @@
     }
 
     /* Insight card borders */
-    .insight-success  { border-left: 4px solid #22C55E; }
+    .insight-success  { border-left: 4px solid #06B6D4; }
     .insight-warning  { border-left: 4px solid #F43F5E; }
     .insight-info     { border-left: 4px solid #06B6D4; }
 
@@ -1188,7 +1188,7 @@
             <!-- Top Performer Card -->
             <div class="chart-container border-l-4 border-success">
               <div class="flex items-center gap-2 mb-3">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#06B6D4" stroke-width="2">
                   <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                 </svg>
                 <h3 class="text-sm font-semibold text-success">Top Performer</h3>
@@ -1267,7 +1267,7 @@
                     <td class="text-right">
                       <span class="inline-flex items-center gap-1">
                         <span class="w-2 h-2 rounded-full"
-                              :class="s.margin_status === 'green' ? 'bg-[#22C55E]' :
+                              :class="s.margin_status === 'green' ? 'bg-[#06B6D4]' :
                                       s.margin_status === 'red' ? 'bg-[#F43F5E]' : 'bg-[#F59E0B]'"></span>
                         <span x-text="fmtPct(s.margin)"></span>
                       </span>

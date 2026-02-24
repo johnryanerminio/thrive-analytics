@@ -247,9 +247,10 @@ def _generate_static_index(out: Path):
     },
 
     _resolvePath(path, params) {
-      const pk = (params.period_type === 'month' && params.year && params.month)
-        ? params.year + '-' + String(params.month).padStart(2, '0')
-        : 'all';
+      let pk = 'all';
+      if (params.period_type === 'month' && params.year && params.month) {
+        pk = params.year + '-' + String(params.month).padStart(2, '0');
+      }
       if (path === '/api/health') return '/data/health.json';
       if (path === '/api/brands') return '/data/brands.json';
       if (path === '/api/stores') return '/data/stores.json';
@@ -364,11 +365,7 @@ def _generate_static_index(out: Path):
         flags=re.DOTALL,
     )
 
-    # --- 13. Simplify period picker: force single-month only ---
-    html = _checked_replace(html,
-        "this.periodType = 'range';",
-        "this.periodType = 'month'; // range disabled in static mode",
-        "range period type")
+    # --- 13. (removed — ranges now supported in static mode) ---
 
     # --- 14. Add init() guard to prevent double initialization ---
     html = _checked_replace(html,

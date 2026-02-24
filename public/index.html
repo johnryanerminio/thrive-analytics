@@ -2873,9 +2873,10 @@ function dashboard() {
     },
 
     _resolvePath(path, params) {
-      const pk = (params.period_type === 'month' && params.year && params.month)
-        ? params.year + '-' + String(params.month).padStart(2, '0')
-        : 'all';
+      let pk = 'all';
+      if (params.period_type === 'month' && params.year && params.month) {
+        pk = params.year + '-' + String(params.month).padStart(2, '0');
+      }
       if (path === '/api/health') return '/data/health.json';
       if (path === '/api/brands') return '/data/brands.json';
       if (path === '/api/stores') return '/data/stores.json';
@@ -2994,10 +2995,10 @@ function dashboard() {
         this.endYear = null; this.endMonth = null;
         this.periodLabel = MONTHS[this.startMonth-1] + ' ' + this.startYear;
       } else {
-        this.periodType = 'month'; // range disabled in static mode
+        this.periodType = 'range';
         this.startYear = this.pickStart.year; this.startMonth = this.pickStart.month;
         this.endYear = this.pickEnd.year; this.endMonth = this.pickEnd.month;
-        this.periodLabel = MO[this.startMonth-1]+' '+this.startYear+' - '+MO[this.endMonth-1]+' '+this.endYear;
+        this.periodLabel = MO[this.startMonth-1]+' '+this.startYear+' – '+MO[this.endMonth-1]+' '+this.endYear;
       }
       this.loadCurrentView();
     },
@@ -3179,7 +3180,10 @@ function dashboard() {
 
     async loadExecSummary() {
       this.loading = true; this.error = null;
-      try { this.execData = await this.api('/api/executive-summary', this.periodParams()); }
+      try {
+        const raw = await this.api('/api/executive-summary', this.periodParams());
+        this.execData = this._filterExecByPeriod(raw);
+      }
       catch(e) { this.error = e.message; }
       this.loading = false;
       this.$nextTick(() => this.renderExecCharts());
@@ -3251,7 +3255,7 @@ function dashboard() {
 
     async loadStorePerf() {
       this.loading = true; this.error = null;
-      try { this.storeData = await this.api('/api/store-performance', this.periodParams()); }
+      try { this.storeData = this._filterExecByPeriod(await this.api('/api/store-performance', this.periodParams())); }
       catch(e) { this.error = e.message; }
       this.loading = false;
       this.$nextTick(() => this.renderStoreCharts());
@@ -3263,6 +3267,40 @@ function dashboard() {
       catch(e) { this.error = e.message; }
       this.loading = false;
       this.$nextTick(() => this.renderYearEndCharts());
+    },
+
+    _filterExecByPeriod(raw) {
+      if (!raw || !raw.monthly_trend?.length || this.periodType === 'all' || this.periodType === 'month') return raw;
+      const sYM = this.startYear * 100 + this.startMonth;
+      const eYM = this.endYear ? this.endYear * 100 + this.endMonth : sYM;
+      raw.monthly_trend = raw.monthly_trend.filter(t => {
+        const ym = t.year * 100 + t.month_num;
+        return ym >= sYM && ym <= eYM;
+      });
+      const n = raw.monthly_trend.length;
+      if (n) {
+        const k = raw.kpis || {};
+        k.total_revenue = raw.monthly_trend.reduce((a,t) => a + t.revenue, 0);
+        k.net_profit = raw.monthly_trend.reduce((a,t) => a + t.profit, 0);
+        k.total_units = raw.monthly_trend.reduce((a,t) => a + t.units, 0);
+        k.total_transactions = raw.monthly_trend.reduce((a,t) => a + t.transactions, 0);
+        k.unique_customers = raw.monthly_trend.reduce((a,t) => a + t.customers, 0);
+        k.blended_margin = k.total_revenue ? Math.round(k.net_profit / k.total_revenue * 1000) / 10 : 0;
+        k.avg_basket = k.total_transactions ? Math.round(k.total_revenue / k.total_transactions * 100) / 100 : 0;
+        k.full_price_pct = raw.monthly_trend.reduce((a,t) => a + t.full_price_pct, 0) / n;
+        k.full_price_pct = Math.round(k.full_price_pct * 10) / 10;
+        raw.kpis = k;
+        raw.period_label = this.periodLabel;
+        const sk = raw.secondary_kpis || {};
+        sk.avg_monthly_revenue = Math.round(k.total_revenue / n);
+        sk.avg_monthly_profit = Math.round(k.net_profit / n);
+        const best = raw.monthly_trend.reduce((a,t) => t.revenue > a.revenue ? t : a, raw.monthly_trend[0]);
+        const worst = raw.monthly_trend.reduce((a,t) => t.revenue < a.revenue ? t : a, raw.monthly_trend[0]);
+        sk.best_month = { label: best.label, revenue: best.revenue };
+        sk.worst_month = { label: worst.label, revenue: worst.revenue };
+        raw.secondary_kpis = sk;
+      }
+      return raw;
     },
 
     _filterBrandByPeriod(raw) {

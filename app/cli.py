@@ -274,6 +274,7 @@ def _generate_static_index(out: Path):
       if (path.startsWith('/api/master/')) {
         const tab = path.split('/')[3];
         if (params.store && this._storeSlugs[params.store]) return '/data/master/' + tab + '/' + this._storeSlugs[params.store] + '.json';
+        if (pk !== 'all') return '/data/master/' + tab + '/' + pk + '.json';
         return '/data/master/' + tab + '.json';
       }
       if (path === '/api/upload/files') return '/data/health.json';
@@ -421,6 +422,7 @@ def cmd_export(args):
     brands = store.brands()
     periods = store.periods_available()
     years = sorted(set(p["year"] for p in periods))
+    year_months = sorted(set((p["year"], p["month"]) for p in periods))
 
     print(f"  {store.row_count():,} rows, {len(store.stores())} stores, {len(brands)} brands, {len(periods)} periods")
     print(f"  Output: {out.resolve()}\n")
@@ -532,9 +534,31 @@ def cmd_export(args):
         print(f"    {y}: done")
     print(f"    {year_written} year-files written, {year_skipped} skipped")
 
-    # --- Master reports (all-time + per-store) ---
-    print("  [5/6] Master reports...")
+    # --- Per-month master reports ---
+    print("  [5a/6] Per-month master reports...")
     import importlib
+    master_modules = {
+        "margin": "app.reports.margin_report",
+        "deals": "app.reports.deal_report",
+        "budtenders": "app.reports.budtender_report",
+        "customers": "app.reports.customer_report",
+        "rewards": "app.reports.rewards_report",
+    }
+    for tab, mod_path in master_modules.items():
+        mod = importlib.import_module(mod_path)
+        (out / f"data/master/{tab}").mkdir(parents=True, exist_ok=True)
+        for y, m in year_months:
+            pk = f"{y}-{str(m).zfill(2)}"
+            pf = PeriodFilter(period_type=PeriodType.MONTH, year=y, month=m)
+            try:
+                data = mod.generate_json(store, pf)
+                _write_json(out / f"data/master/{tab}/{pk}.json", data)
+            except Exception as e:
+                pass
+        print(f"    {tab}: {len(year_months)} month files")
+
+    # --- Master reports (all-time + per-store) ---
+    print("  [5b/6] Master reports...")
     master_modules = {
         "margin": "app.reports.margin_report",
         "deals": "app.reports.deal_report",

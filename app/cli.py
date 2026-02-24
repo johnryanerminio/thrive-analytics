@@ -228,7 +228,19 @@ def _generate_static_index(out: Path):
     new_api = """    async api(path, params = {}) {
       const url = this._resolvePath(path, params);
       const r = await fetch(url);
-      if (!r.ok) throw new Error('Data not available for this selection');
+      if (!r.ok) {
+        if (path.includes('/brands/') && (path.endsWith('/report') || path.endsWith('/facing'))) {
+          const brand = decodeURIComponent(path.split('/')[3]);
+          const slug = this._brandSlugs[brand] || brand.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+          const suffix = path.endsWith('/report') ? 'report' : 'facing';
+          const fallback = '/data/brands/' + slug + '/' + suffix + '.json';
+          if (fallback !== url) {
+            const r2 = await fetch(fallback);
+            if (r2.ok) return r2.json();
+          }
+        }
+        throw new Error('Data not available for this selection');
+      }
       return r.json();
     },
 

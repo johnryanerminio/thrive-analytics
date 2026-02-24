@@ -247,11 +247,13 @@ def _generate_static_index(out: Path):
       if (path.includes('/brands/') && path.endsWith('/report')) {
         const brand = decodeURIComponent(path.split('/')[3]);
         const slug = this._brandSlugs[brand] || brand.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        if (pk !== 'all') { const yr = pk.split('-')[0]; return '/data/brands/' + slug + '/report-' + yr + '.json'; }
         return '/data/brands/' + slug + '/report.json';
       }
       if (path.includes('/brands/') && path.endsWith('/facing')) {
         const brand = decodeURIComponent(path.split('/')[3]);
         const slug = this._brandSlugs[brand] || brand.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        if (pk !== 'all') { const yr = pk.split('-')[0]; return '/data/brands/' + slug + '/facing-' + yr + '.json'; }
         return '/data/brands/' + slug + '/facing.json';
       }
       if (path.startsWith('/api/master/')) {
@@ -376,18 +378,7 @@ def _generate_static_index(out: Path):
         "setTimeout(tryRender, 300);",
     )
 
-    # --- 16. Fix MoM section: use x-if instead of x-show for data guard ---
-    html = html.replace(
-        '<div x-show="momData" x-cloak>\n          <!-- Period label -->',
-        '<template x-if="momData">\n      <div>\n          <!-- Period label -->',
-        1,
-    )
-    # Close the template tag before the empty state
-    html = html.replace(
-        '      <!-- Empty state -->\n      <div x-show="!momData && !loading"',
-        '      </template>\n\n      <!-- Empty state -->\n      <div x-show="!momData && !loading"',
-        1,
-    )
+    # --- 16. (Removed — MoM now uses x-show in source) ---
 
     # --- 17. MoM always loads all-time data (comparing single months is pointless) ---
     html = html.replace(
@@ -503,6 +494,32 @@ def cmd_export(args):
             pass  # facing reports may fail for small brands
     if skipped:
         print(f"    ({skipped} brands skipped — fewer than 5 transactions)")
+
+    # --- Per-year brand reports ---
+    print(f"  [4b/6] Per-year brand reports ({len(brands)} brands × {len(years)} years)...")
+    year_skipped = 0
+    year_written = 0
+    for y in years:
+        year_pf = PeriodFilter(period_type=PeriodType.YEAR, year=y)
+        for brand in brands:
+            slug = slugs[brand]
+            try:
+                brand_df = store.get_brand(brand, year_pf)
+                if len(brand_df) < 5:
+                    year_skipped += 1
+                    continue
+                report = brand_disp_json(store, brand, year_pf, None)
+                _write_json(out / f"data/brands/{slug}/report-{y}.json", report)
+                year_written += 1
+            except Exception as e:
+                pass
+            try:
+                facing = brand_face_json(store, brand, year_pf)
+                _write_json(out / f"data/brands/{slug}/facing-{y}.json", facing)
+            except Exception:
+                pass
+        print(f"    {y}: done")
+    print(f"    {year_written} year-files written, {year_skipped} skipped")
 
     # --- Master reports (all-time + per-store) ---
     print("  [5/6] Master reports...")

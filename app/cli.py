@@ -398,6 +398,197 @@ def _generate_static_index(out: Path):
         "this.momData = await this.api('/api/month-over-month', {period_type: 'all'})",
     )
 
+    # --- 18. Range-aware loadExecSummary ---
+    html = html.replace(
+        """    async loadExecSummary() {
+      this.loading = true; this.error = null;
+      try { this.execData = await this.api('/api/executive-summary', this.periodParams()); }
+      catch(e) { this.error = e.message; }
+      this.loading = false;
+      this.$nextTick(() => this.renderExecCharts());
+    },""",
+        """    async loadExecSummary() {
+      this.loading = true; this.error = null;
+      try {
+        if (this.periodType === 'range' && this.startYear && this.endYear) {
+          this.execData = await this._loadExecRange();
+        } else {
+          this.execData = await this.api('/api/executive-summary', this.periodParams());
+        }
+      }
+      catch(e) { this.error = e.message; }
+      this.loading = false;
+      this.$nextTick(() => this.renderExecCharts());
+    },
+
+    async _loadExecRange() {
+      const months = this._buildMonthKeys();
+      const results = await Promise.all(months.map(pk => this._fetchJson('/data/exec/' + pk + '.json')));
+      const valid = results.filter(Boolean);
+      if (!valid.length) throw new Error('No data available for this range');
+      const n = valid.length;
+      const trend = valid.flatMap(d => d.monthly_trend || []);
+      const totRev = valid.reduce((a,d) => a + (d.kpis?.total_revenue || 0), 0);
+      const totProfit = valid.reduce((a,d) => a + (d.kpis?.net_profit || 0), 0);
+      const totUnits = valid.reduce((a,d) => a + (d.kpis?.total_units || 0), 0);
+      const totTx = valid.reduce((a,d) => a + (d.kpis?.total_transactions || 0), 0);
+      const totDisc = valid.reduce((a,d) => a + (d.kpis?.total_discounts || 0), 0);
+      const totCust = valid.reduce((a,d) => a + (d.kpis?.unique_customers || 0), 0);
+      const fpPct = valid.reduce((a,d) => a + (d.kpis?.full_price_pct || 0), 0) / n;
+      const catMap = {}; valid.forEach(d => (d.top_categories || []).forEach(c => {
+        if (!catMap[c.name]) catMap[c.name] = {name:c.name,revenue:0,margin_sum:0};
+        catMap[c.name].revenue += c.revenue; catMap[c.name].margin_sum += c.margin * c.revenue;
+      }));
+      const cats = Object.values(catMap).map(c => ({name:c.name,revenue:c.revenue,margin:c.revenue?Math.round(c.margin_sum/c.revenue*10)/10:0,pct_of_total:totRev?Math.round(c.revenue/totRev*1000)/10:0})).sort((a,b)=>b.revenue-a.revenue);
+      const storeMap = {}; valid.forEach(d => (d.top_stores || []).forEach(s => {
+        if (!storeMap[s.name]) storeMap[s.name] = {name:s.name,revenue:0,margin_sum:0,units:0};
+        storeMap[s.name].revenue += s.revenue; storeMap[s.name].margin_sum += s.margin * s.revenue; storeMap[s.name].units += s.units;
+      }));
+      const stores = Object.values(storeMap).map(s => ({name:s.name,revenue:s.revenue,units:s.units,margin:s.revenue?Math.round(s.margin_sum/s.revenue*10)/10:0})).sort((a,b)=>b.revenue-a.revenue);
+      const fpRev = valid.reduce((a,d) => a + (d.sales_mix?.full_price_revenue||0), 0);
+      const discRev = valid.reduce((a,d) => a + (d.sales_mix?.discounted_revenue||0), 0);
+      const fpMSum = valid.reduce((a,d) => a + (d.sales_mix?.full_price_margin||0)*(d.sales_mix?.full_price_revenue||0), 0);
+      const dMSum = valid.reduce((a,d) => a + (d.sales_mix?.discounted_margin||0)*(d.sales_mix?.discounted_revenue||0), 0);
+      const tmr = fpRev+discRev;
+      const salesMix = {full_price_pct:tmr?Math.round(fpRev/tmr*1000)/10:0,discounted_pct:tmr?Math.round(discRev/tmr*1000)/10:0,full_price_revenue:fpRev,discounted_revenue:discRev,full_price_margin:fpRev?Math.round(fpMSum/fpRev*10)/10:0,discounted_margin:discRev?Math.round(dMSum/discRev*10)/10:0,health:tmr&&fpRev/tmr<0.35?'watch':'ok'};
+      salesMix.margin_gap_pts = Math.round((salesMix.full_price_margin - salesMix.discounted_margin)*10)/10;
+      const exMap = {}; valid.forEach(d => (d.excluded_transactions?.breakdown||[]).forEach(b => {
+        if (!exMap[b.type]) exMap[b.type] = {type:b.type,count:0,value:0,units:0};
+        exMap[b.type].count += b.count; exMap[b.type].value += b.value; exMap[b.type].units += b.units;
+      }));
+      const exB = Object.values(exMap); const exT = exB.reduce((a,b)=>a+b.count,0); const exV = exB.reduce((a,b)=>a+b.value,0); const exU = exB.reduce((a,b)=>a+b.units,0);
+      const best = trend.reduce((a,t)=>t.revenue>a.revenue?t:a,trend[0]);
+      const worst = trend.reduce((a,t)=>t.revenue<a.revenue?t:a,trend[0]);
+      return {period_label:this.periodLabel,kpis:{total_revenue:totRev,net_profit:totProfit,blended_margin:totRev?Math.round(totProfit/totRev*1000)/10:0,total_units:totUnits,total_transactions:totTx,total_discounts:totDisc,full_price_pct:Math.round(fpPct*10)/10,avg_basket:totTx?Math.round(totRev/totTx*100)/100:0,unique_customers:totCust,stores:valid[0]?.kpis?.stores||7,brands:valid[0]?.kpis?.brands||312},secondary_kpis:{avg_monthly_revenue:Math.round(totRev/n),avg_monthly_profit:Math.round(totProfit/n),best_month:{label:best?.label,revenue:best?.revenue},worst_month:{label:worst?.label,revenue:worst?.revenue}},monthly_trend:trend,top_categories:cats,top_stores:stores,sales_mix:salesMix,excluded_transactions:{total:exT,total_value:exV,total_units:exU,breakdown:exB},insights:valid[valid.length-1]?.insights||[]};
+    },""",
+    )
+
+    # --- 19. Range-aware loadStorePerf ---
+    html = html.replace(
+        """    async loadStorePerf() {
+      this.loading = true; this.error = null;
+      try { this.storeData = await this.api('/api/store-performance', this.periodParams()); }
+      catch(e) { this.error = e.message; }
+      this.loading = false;
+      this.$nextTick(() => this.renderStoreCharts());
+    },""",
+        """    async loadStorePerf() {
+      this.loading = true; this.error = null;
+      try {
+        if (this.periodType === 'range' && this.startYear && this.endYear) {
+          this.storeData = await this._loadStoreRange();
+        } else {
+          this.storeData = await this.api('/api/store-performance', this.periodParams());
+        }
+      }
+      catch(e) { this.error = e.message; }
+      this.loading = false;
+      this.$nextTick(() => this.renderStoreCharts());
+    },
+
+    async _loadStoreRange() {
+      const months = this._buildMonthKeys();
+      const results = await Promise.all(months.map(pk => this._fetchJson('/data/stores-perf/' + pk + '.json')));
+      const valid = results.filter(Boolean);
+      if (!valid.length) throw new Error('No store data for this range');
+      const storeMap = {};
+      valid.forEach(d => (d.stores||[]).forEach(s => {
+        if (!storeMap[s.name]) storeMap[s.name] = {name:s.name,revenue:0,profit:0,units:0,transactions:0,fp_sum:0,cnt:0,customers:0,brands:{},cats:{}};
+        const st = storeMap[s.name]; st.revenue+=s.revenue; st.profit+=s.profit; st.units+=s.units; st.transactions+=s.transactions; st.fp_sum+=s.full_price_pct; st.cnt++; st.customers+=s.unique_customers;
+        if (s.top_brand) st.brands[s.top_brand]=(st.brands[s.top_brand]||0)+1;
+        if (s.top_category) st.cats[s.top_category]=(st.cats[s.top_category]||0)+1;
+      }));
+      const mostFreq = obj => Object.entries(obj).sort((a,b)=>b[1]-a[1])[0]?.[0]||'-';
+      const stores = Object.values(storeMap).map(s=>({name:s.name,revenue:s.revenue,profit:s.profit,margin:s.revenue?Math.round(s.profit/s.revenue*1000)/10:0,share_pct:0,units:s.units,transactions:s.transactions,full_price_pct:s.cnt?Math.round(s.fp_sum/s.cnt*10)/10:0,unique_customers:s.customers,top_brand:mostFreq(s.brands),top_category:mostFreq(s.cats)})).sort((a,b)=>b.revenue-a.revenue);
+      const totRev = stores.reduce((a,s)=>a+s.revenue,0);
+      stores.forEach((s,i)=>{s.rank=i+1;s.share_pct=totRev?Math.round(s.revenue/totRev*1000)/10:0;});
+      const avgMargin = totRev?Math.round(stores.reduce((a,s)=>a+s.profit,0)/totRev*1000)/10:0;
+      return {period_label:this.periodLabel,stores,company_avg_margin:avgMargin,top_performer:stores[0]?.name||'',bottom_performer:stores[stores.length-1]?.name||''};
+    },""",
+    )
+
+    # --- 20. Range-aware loadMasterReport ---
+    html = html.replace(
+        "this.masterData = this._normalizeMaster(await this.api('/api/master/'+this.masterTab, this.periodParams()), this.masterTab);",
+        """(() => { const mp = this.periodParams(); if (this.masterStore) mp.store = this.masterStore; return mp; })();
+        if (this.periodType === 'range' && this.startYear && this.endYear && !this.masterStore) {
+          this.masterData = this._normalizeMaster(await this._loadMasterRange(this.masterTab), this.masterTab);
+        } else {
+          const mp2 = this.periodParams(); if (this.masterStore) mp2.store = this.masterStore;
+          this.masterData = this._normalizeMaster(await this.api('/api/master/'+this.masterTab, mp2), this.masterTab);
+        }""",
+    )
+
+    # --- 21. Add helper methods: _buildMonthKeys, _fetchJson, _loadMasterRange ---
+    html = html.replace(
+        "async loadDMFiles()",
+        """_buildMonthKeys() {
+      const months = [];
+      let y = this.startYear, m = this.startMonth;
+      while (y < this.endYear || (y === this.endYear && m <= this.endMonth)) {
+        months.push(y + '-' + String(m).padStart(2, '0'));
+        m++; if (m > 12) { m = 1; y++; }
+      }
+      return months;
+    },
+
+    async _fetchJson(url) {
+      try {
+        const r = await fetch(url);
+        const ct = r.headers.get('content-type') || '';
+        if (r.ok && ct.includes('application/json')) return r.json();
+      } catch(e) {}
+      return null;
+    },
+
+    async _loadMasterRange(tab) {
+      const months = this._buildMonthKeys();
+      const results = await Promise.all(months.map(pk => this._fetchJson('/data/master/' + tab + '/' + pk + '.json')));
+      const valid = results.filter(Boolean);
+      if (!valid.length) {
+        const fb = await this._fetchJson('/data/master/' + tab + '.json');
+        if (fb) return fb;
+        throw new Error('No master data for this range');
+      }
+      if (tab === 'margin') {
+        const mergeRows = (key, nf) => {
+          const m2 = {};
+          valid.forEach(d => (d[key]||[]).forEach(r => {
+            const n = r[nf]||r.name||'?';
+            if (!m2[n]) m2[n] = {[nf]:n,name:n,rev:0,profit:0,units:0,cnt:0,fp_sum:0,fpm_sum:0,dm_sum:0};
+            const m = m2[n]; const rv = r.total_revenue??r.revenue??0; const pf = r.net_profit??r.profit??0;
+            m.rev+=rv; m.profit+=pf; m.units+=(r.total_units??r.units??0); m.fp_sum+=(r.pct_full_price??r.fp_pct??0); m.cnt++;
+            m.fpm_sum+=(r.full_price_margin??r.fp_margin??0)*rv; m.dm_sum+=(r.discounted_margin??r.disc_margin??0)*rv;
+          }));
+          return Object.values(m2).map(m=>({[nf]:m[nf],name:m.name,total_revenue:m.rev,revenue:m.rev,net_profit:m.profit,profit:m.profit,total_units:m.units,units:m.units,blended_margin:m.rev?Math.round(m.profit/m.rev*1000)/10:0,pct_full_price:m.cnt?Math.round(m.fp_sum/m.cnt*10)/10:0,full_price_margin:m.rev?Math.round(m.fpm_sum/m.rev*10)/10:0,discounted_margin:m.rev?Math.round(m.dm_sum/m.rev*10)/10:0})).sort((a,b)=>b.rev-a.rev);
+        };
+        const n = valid.length;
+        const tR = valid.reduce((a,d)=>a+(d.totals?.total_revenue??0),0);
+        const tP = valid.reduce((a,d)=>a+(d.totals?.net_profit??0),0);
+        const tU = valid.reduce((a,d)=>a+(d.totals?.total_units??0),0);
+        const fpmS = valid.reduce((a,d)=>a+(d.totals?.full_price_margin??0)*(d.totals?.total_revenue??0),0);
+        const dmS = valid.reduce((a,d)=>a+(d.totals?.discounted_margin??0)*(d.totals?.total_revenue??0),0);
+        const fpP = valid.reduce((a,d)=>a+(d.totals?.pct_full_price??0),0)/n;
+        return {date_range:this.periodLabel,totals:{total_revenue:tR,net_profit:tP,total_units:tU,blended_margin:tR?Math.round(tP/tR*1000)/10:0,full_price_margin:tR?Math.round(fpmS/tR*10)/10:0,discounted_margin:tR?Math.round(dmS/tR*10)/10:0,pct_full_price:Math.round(fpP*10)/10},by_store:mergeRows('by_store','store'),by_brand:mergeRows('by_brand','brand'),by_category:mergeRows('by_category','category'),by_deal_type:mergeRows('by_deal_type','deal_type')};
+      }
+      if (tab === 'deals') {
+        const dtMap = {};
+        valid.forEach(d => (d.deal_types||[]).forEach(r => {
+          const n = r.deal_type||r.name;
+          if (!dtMap[n]) dtMap[n] = {deal_type:n,count:0,revenue:0,profit:0,disc_sum:0,cnt:0};
+          dtMap[n].count+=(r.count??0); dtMap[n].revenue+=(r.actual_revenue??r.revenue??0); dtMap[n].profit+=(r.net_profit??r.profit??0); dtMap[n].disc_sum+=(r.discount_rate??0); dtMap[n].cnt++;
+        }));
+        const dealTypes = Object.values(dtMap).map(d=>({deal_type:d.deal_type,count:d.count,actual_revenue:d.revenue,revenue:d.revenue,net_profit:d.profit,profit:d.profit,discount_rate:d.cnt?Math.round(d.disc_sum/d.cnt*10)/10:0,margin:d.revenue?Math.round(d.profit/d.revenue*1000)/10:0})).sort((a,b)=>b.revenue-a.revenue);
+        const tdMap = {};
+        valid.flatMap(d=>d.top_deals||[]).forEach(d=>{const k=d.deal_name||d.name;if(!tdMap[k])tdMap[k]={...d,revenue:0,count:0,profit:0};tdMap[k].revenue+=(d.actual_revenue??d.revenue??0);tdMap[k].count+=(d.count??0);tdMap[k].profit+=(d.net_profit??d.profit??0);});
+        return {date_range:this.periodLabel,deal_types:dealTypes,top_deals:Object.values(tdMap).sort((a,b)=>(b.revenue||0)-(a.revenue||0)).slice(0,30)};
+      }
+      return valid[valid.length-1];
+    },
+
+    async loadDMFiles()""",
+    )
+
     out.write_text(html)
     print(f"  Generated {out}")
 

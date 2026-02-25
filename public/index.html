@@ -614,7 +614,7 @@
       <!-- Store filter -->
       <select x-model="selectedStore"
               @change="loadCurrentView()"
-              class="hidden px-3 py-2 text-sm border border-muted rounded-lg bg-[#151C26] text-[#cbd5e1] focus:outline-none focus:border-gold">
+              class="hidden md:block px-3 py-2 text-sm border border-muted rounded-lg bg-[#151C26] text-[#cbd5e1] focus:outline-none focus:border-gold">
         <option value="">All Stores</option>
         <template x-for="s in stores" :key="s">
           <option :value="s" x-text="s"></option>
@@ -1119,8 +1119,6 @@
               </tbody>
             </table>
           </div>
-      </div>
-
       </div>
 
       <!-- Empty state -->
@@ -2206,7 +2204,7 @@
           </template>
         </div>
         <select x-model="masterStore" @change="loadMasterReport()"
-                class="px-3 py-2.5 md:py-1.5 text-sm border border-muted rounded-lg bg-[#151C26] text-[#cbd5e1] focus:outline-none focus:border-gold">
+                class="px-3 py-2.5 md:py-1.5 text-sm border border-muted rounded-lg bg-[#161922] text-[#cbd5e1] focus:outline-none focus:border-gold">
           <option value="">All Stores</option>
           <template x-for="s in stores" :key="s">
             <option :value="s" x-text="s.replace('Thrive Cannabis ','').replace('Thrive ','')"></option>
@@ -2856,21 +2854,11 @@ function dashboard() {
       const ct = r.headers.get('content-type') || '';
       const isJson = ct.includes('application/json');
       if (!r.ok || !isJson) {
-        // Fallback: if a per-year brand file is missing (Vercel returns HTML via rewrite), load all-time file
         if (path.includes('/brands/') && (path.endsWith('/report') || path.endsWith('/facing'))) {
           const brand = decodeURIComponent(path.split('/')[3]);
           const slug = this._brandSlugs[brand] || brand.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
           const suffix = path.endsWith('/report') ? 'report' : 'facing';
           const fallback = '/data/brands/' + slug + '/' + suffix + '.json';
-          if (fallback !== url) {
-            const r2 = await fetch(fallback);
-            if (r2.ok) return r2.json();
-          }
-        }
-        // Fallback: if a per-month master file is missing, load all-time file
-        if (path.startsWith('/api/master/')) {
-          const tab = path.split('/')[3];
-          const fallback = '/data/master/' + tab + '.json';
           if (fallback !== url) {
             const r2 = await fetch(fallback);
             if (r2.ok) return r2.json();
@@ -3008,7 +2996,7 @@ function dashboard() {
         this.periodType = 'range';
         this.startYear = this.pickStart.year; this.startMonth = this.pickStart.month;
         this.endYear = this.pickEnd.year; this.endMonth = this.pickEnd.month;
-        this.periodLabel = MO[this.startMonth-1]+' '+this.startYear+' – '+MO[this.endMonth-1]+' '+this.endYear;
+        this.periodLabel = MO[this.startMonth-1]+' '+this.startYear+' - '+MO[this.endMonth-1]+' '+this.endYear;
       }
       this.loadCurrentView();
     },
@@ -3190,122 +3178,16 @@ function dashboard() {
 
     async loadExecSummary() {
       this.loading = true; this.error = null;
-      try {
-        if (this.periodType === 'range' && this.startYear && this.endYear) {
-          this.execData = await this._loadExecRange();
-        } else {
-          this.execData = await this.api('/api/executive-summary', this.periodParams());
-        }
-      }
+      try { this.execData = await this.api('/api/executive-summary', this.periodParams()); }
       catch(e) { this.error = e.message; }
       this.loading = false;
       this.$nextTick(() => this.renderExecCharts());
     },
 
-    async _loadExecRange() {
-      // Build list of YYYY-MM keys for the range
-      const months = [];
-      let y = this.startYear, m = this.startMonth;
-      while (y < this.endYear || (y === this.endYear && m <= this.endMonth)) {
-        months.push(y + '-' + String(m).padStart(2, '0'));
-        m++; if (m > 12) { m = 1; y++; }
-      }
-      // Fetch all month files in parallel
-      const results = await Promise.all(months.map(async pk => {
-        try {
-          const r = await fetch('/data/exec/' + pk + '.json');
-          const ct = r.headers.get('content-type') || '';
-          if (r.ok && ct.includes('application/json')) return r.json();
-        } catch(e) {}
-        return null;
-      }));
-      const valid = results.filter(Boolean);
-      if (!valid.length) throw new Error('No data available for this range');
-      // Aggregate
-      const trend = valid.flatMap(d => d.monthly_trend || []);
-      const n = valid.length;
-      const totRev = valid.reduce((a,d) => a + (d.kpis?.total_revenue || 0), 0);
-      const totProfit = valid.reduce((a,d) => a + (d.kpis?.net_profit || 0), 0);
-      const totUnits = valid.reduce((a,d) => a + (d.kpis?.total_units || 0), 0);
-      const totTx = valid.reduce((a,d) => a + (d.kpis?.total_transactions || 0), 0);
-      const totDisc = valid.reduce((a,d) => a + (d.kpis?.total_discounts || 0), 0);
-      const totCust = valid.reduce((a,d) => a + (d.kpis?.unique_customers || 0), 0);
-      const fpPct = valid.reduce((a,d) => a + (d.kpis?.full_price_pct || 0), 0) / n;
-      // Merge top_categories by name
-      const catMap = {};
-      valid.forEach(d => (d.top_categories || []).forEach(c => {
-        if (!catMap[c.name]) catMap[c.name] = { name: c.name, revenue: 0, margin_sum: 0, cnt: 0 };
-        catMap[c.name].revenue += c.revenue;
-        catMap[c.name].margin_sum += c.margin * c.revenue;
-        catMap[c.name].cnt++;
-      }));
-      const cats = Object.values(catMap).map(c => ({
-        name: c.name, revenue: c.revenue,
-        margin: c.revenue ? Math.round(c.margin_sum / c.revenue * 10) / 10 : 0,
-        pct_of_total: totRev ? Math.round(c.revenue / totRev * 1000) / 10 : 0
-      })).sort((a,b) => b.revenue - a.revenue);
-      // Merge top_stores by name
-      const storeMap = {};
-      valid.forEach(d => (d.top_stores || []).forEach(s => {
-        if (!storeMap[s.name]) storeMap[s.name] = { name: s.name, revenue: 0, margin_sum: 0, units: 0 };
-        storeMap[s.name].revenue += s.revenue;
-        storeMap[s.name].margin_sum += s.margin * s.revenue;
-        storeMap[s.name].units += s.units;
-      }));
-      const stores = Object.values(storeMap).map(s => ({
-        name: s.name, revenue: s.revenue, units: s.units,
-        margin: s.revenue ? Math.round(s.margin_sum / s.revenue * 10) / 10 : 0
-      })).sort((a,b) => b.revenue - a.revenue);
-      // Merge sales_mix
-      const fpRev = valid.reduce((a,d) => a + (d.sales_mix?.full_price_revenue || 0), 0);
-      const discRev = valid.reduce((a,d) => a + (d.sales_mix?.discounted_revenue || 0), 0);
-      const fpMarginSum = valid.reduce((a,d) => a + (d.sales_mix?.full_price_margin || 0) * (d.sales_mix?.full_price_revenue || 0), 0);
-      const discMarginSum = valid.reduce((a,d) => a + (d.sales_mix?.discounted_margin || 0) * (d.sales_mix?.discounted_revenue || 0), 0);
-      const totalMixRev = fpRev + discRev;
-      const salesMix = {
-        full_price_pct: totalMixRev ? Math.round(fpRev / totalMixRev * 1000) / 10 : 0,
-        discounted_pct: totalMixRev ? Math.round(discRev / totalMixRev * 1000) / 10 : 0,
-        full_price_revenue: fpRev, discounted_revenue: discRev,
-        full_price_margin: fpRev ? Math.round(fpMarginSum / fpRev * 10) / 10 : 0,
-        discounted_margin: discRev ? Math.round(discMarginSum / discRev * 10) / 10 : 0,
-        health: (totalMixRev && fpRev / totalMixRev < 0.35) ? 'watch' : 'ok'
-      };
-      salesMix.margin_gap_pts = Math.round((salesMix.full_price_margin - salesMix.discounted_margin) * 10) / 10;
-      // Merge excluded_transactions
-      const exMap = {};
-      valid.forEach(d => (d.excluded_transactions?.breakdown || []).forEach(b => {
-        if (!exMap[b.type]) exMap[b.type] = { type: b.type, count: 0, value: 0, units: 0 };
-        exMap[b.type].count += b.count; exMap[b.type].value += b.value; exMap[b.type].units += b.units;
-      }));
-      const exBreakdown = Object.values(exMap);
-      const exTotal = exBreakdown.reduce((a,b) => a + b.count, 0);
-      const exValue = exBreakdown.reduce((a,b) => a + b.value, 0);
-      const exUnits = exBreakdown.reduce((a,b) => a + b.units, 0);
-      // Best/worst month
-      const best = trend.reduce((a,t) => t.revenue > a.revenue ? t : a, trend[0]);
-      const worst = trend.reduce((a,t) => t.revenue < a.revenue ? t : a, trend[0]);
-      return {
-        period_label: this.periodLabel,
-        kpis: {
-          total_revenue: totRev, net_profit: totProfit, blended_margin: totRev ? Math.round(totProfit / totRev * 1000) / 10 : 0,
-          total_units: totUnits, total_transactions: totTx, total_discounts: totDisc,
-          full_price_pct: Math.round(fpPct * 10) / 10, avg_basket: totTx ? Math.round(totRev / totTx * 100) / 100 : 0,
-          unique_customers: totCust, stores: valid[0]?.kpis?.stores || 7, brands: valid[0]?.kpis?.brands || 312
-        },
-        secondary_kpis: {
-          avg_monthly_revenue: Math.round(totRev / n), avg_monthly_profit: Math.round(totProfit / n),
-          best_month: { label: best?.label, revenue: best?.revenue }, worst_month: { label: worst?.label, revenue: worst?.revenue }
-        },
-        monthly_trend: trend, top_categories: cats, top_stores: stores, sales_mix: salesMix,
-        excluded_transactions: { total: exTotal, total_value: exValue, total_units: exUnits, breakdown: exBreakdown },
-        insights: valid[valid.length - 1]?.insights || []
-      };
-    },
-
     async loadMoM() {
       this.loading = true; this.error = null;
       try {
-        const raw = await this.api('/api/month-over-month', {period_type: 'all'});
+        const raw = await this.api('/api/month-over-month', this.periodParams());
         // Filter to selected date range and rebuild YoY comparison
         if (this.endYear && this.startYear && raw.months) {
           const sYM = this.startYear * 100 + this.startMonth;
@@ -3368,62 +3250,10 @@ function dashboard() {
 
     async loadStorePerf() {
       this.loading = true; this.error = null;
-      try {
-        if (this.periodType === 'range' && this.startYear && this.endYear) {
-          this.storeData = await this._loadStoreRange();
-        } else {
-          this.storeData = await this.api('/api/store-performance', this.periodParams());
-        }
-      }
+      try { this.storeData = await this.api('/api/store-performance', this.periodParams()); }
       catch(e) { this.error = e.message; }
       this.loading = false;
       this.$nextTick(() => this.renderStoreCharts());
-    },
-
-    async _loadStoreRange() {
-      const months = [];
-      let y = this.startYear, m = this.startMonth;
-      while (y < this.endYear || (y === this.endYear && m <= this.endMonth)) {
-        months.push(y + '-' + String(m).padStart(2, '0'));
-        m++; if (m > 12) { m = 1; y++; }
-      }
-      const results = await Promise.all(months.map(async pk => {
-        try {
-          const r = await fetch('/data/stores-perf/' + pk + '.json');
-          const ct = r.headers.get('content-type') || '';
-          if (r.ok && ct.includes('application/json')) return r.json();
-        } catch(e) {}
-        return null;
-      }));
-      const valid = results.filter(Boolean);
-      if (!valid.length) throw new Error('No store data for this range');
-      const storeMap = {};
-      valid.forEach(d => (d.stores || []).forEach(s => {
-        if (!storeMap[s.name]) storeMap[s.name] = { name: s.name, revenue: 0, profit: 0, units: 0, transactions: 0, fp_sum: 0, cnt: 0, customers: 0, brands: {}, cats: {} };
-        const st = storeMap[s.name];
-        st.revenue += s.revenue; st.profit += s.profit; st.units += s.units;
-        st.transactions += s.transactions; st.fp_sum += s.full_price_pct; st.cnt++;
-        st.customers += s.unique_customers;
-        if (s.top_brand) st.brands[s.top_brand] = (st.brands[s.top_brand] || 0) + 1;
-        if (s.top_category) st.cats[s.top_category] = (st.cats[s.top_category] || 0) + 1;
-      }));
-      const mostFreq = obj => Object.entries(obj).sort((a,b) => b[1] - a[1])[0]?.[0] || '-';
-      const stores = Object.values(storeMap).map((s, i) => ({
-        name: s.name, rank: i + 1, revenue: s.revenue, profit: s.profit,
-        margin: s.revenue ? Math.round(s.profit / s.revenue * 1000) / 10 : 0,
-        share_pct: 0, units: s.units, transactions: s.transactions,
-        full_price_pct: s.cnt ? Math.round(s.fp_sum / s.cnt * 10) / 10 : 0,
-        unique_customers: s.customers,
-        top_brand: mostFreq(s.brands), top_category: mostFreq(s.cats)
-      })).sort((a,b) => b.revenue - a.revenue);
-      const totRev = stores.reduce((a,s) => a + s.revenue, 0);
-      stores.forEach((s, i) => { s.rank = i + 1; s.share_pct = totRev ? Math.round(s.revenue / totRev * 1000) / 10 : 0; });
-      const avgMargin = totRev ? Math.round(stores.reduce((a,s) => a + s.profit, 0) / totRev * 1000) / 10 : 0;
-      return {
-        period_label: this.periodLabel, stores,
-        company_avg_margin: avgMargin,
-        top_performer: stores[0]?.name || '', bottom_performer: stores[stores.length - 1]?.name || ''
-      };
     },
 
     async loadYearEnd() {
@@ -3432,40 +3262,6 @@ function dashboard() {
       catch(e) { this.error = e.message; }
       this.loading = false;
       this.$nextTick(() => this.renderYearEndCharts());
-    },
-
-    _filterExecByPeriod(raw) {
-      if (!raw || !raw.monthly_trend?.length || this.periodType === 'all' || this.periodType === 'month') return raw;
-      const sYM = this.startYear * 100 + this.startMonth;
-      const eYM = this.endYear ? this.endYear * 100 + this.endMonth : sYM;
-      raw.monthly_trend = raw.monthly_trend.filter(t => {
-        const ym = t.year * 100 + t.month_num;
-        return ym >= sYM && ym <= eYM;
-      });
-      const n = raw.monthly_trend.length;
-      if (n) {
-        const k = raw.kpis || {};
-        k.total_revenue = raw.monthly_trend.reduce((a,t) => a + t.revenue, 0);
-        k.net_profit = raw.monthly_trend.reduce((a,t) => a + t.profit, 0);
-        k.total_units = raw.monthly_trend.reduce((a,t) => a + t.units, 0);
-        k.total_transactions = raw.monthly_trend.reduce((a,t) => a + t.transactions, 0);
-        k.unique_customers = raw.monthly_trend.reduce((a,t) => a + t.customers, 0);
-        k.blended_margin = k.total_revenue ? Math.round(k.net_profit / k.total_revenue * 1000) / 10 : 0;
-        k.avg_basket = k.total_transactions ? Math.round(k.total_revenue / k.total_transactions * 100) / 100 : 0;
-        k.full_price_pct = raw.monthly_trend.reduce((a,t) => a + t.full_price_pct, 0) / n;
-        k.full_price_pct = Math.round(k.full_price_pct * 10) / 10;
-        raw.kpis = k;
-        raw.period_label = this.periodLabel;
-        const sk = raw.secondary_kpis || {};
-        sk.avg_monthly_revenue = Math.round(k.total_revenue / n);
-        sk.avg_monthly_profit = Math.round(k.net_profit / n);
-        const best = raw.monthly_trend.reduce((a,t) => t.revenue > a.revenue ? t : a, raw.monthly_trend[0]);
-        const worst = raw.monthly_trend.reduce((a,t) => t.revenue < a.revenue ? t : a, raw.monthly_trend[0]);
-        sk.best_month = { label: best.label, revenue: best.revenue };
-        sk.worst_month = { label: worst.label, revenue: worst.revenue };
-        raw.secondary_kpis = sk;
-      }
-      return raw;
     },
 
     _filterBrandByPeriod(raw) {
@@ -3477,7 +3273,6 @@ function dashboard() {
         const ym = y * 100 + m;
         return ym >= sYM && ym <= eYM;
       });
-      // Recalculate KPIs from filtered trend
       const n = raw.trend.length;
       if (n) {
         const s = raw.summary || raw.kpis || {};
@@ -3495,7 +3290,6 @@ function dashboard() {
         s.cost_per_unit = tu ? Math.round(tc / tu * 100) / 100 : 0;
         raw.summary = s;
       }
-      // Recompute trend change percentages after filtering
       for (let i = 0; i < raw.trend.length; i++) {
         if (i === 0) {
           raw.trend[i].revenue_change_pct = null;
@@ -3537,130 +3331,10 @@ function dashboard() {
 
     async loadMasterReport() {
       this.loading = true; this.error = null; this.masterData = null;
-      try {
-        if (this.periodType === 'range' && this.startYear && this.endYear && !this.masterStore) {
-          this.masterData = this._normalizeMaster(await this._loadMasterRange(this.masterTab), this.masterTab);
-        } else {
-          const mp = this.periodParams(); if (this.masterStore) mp.store = this.masterStore;
-          this.masterData = this._normalizeMaster(await this.api('/api/master/'+this.masterTab, mp), this.masterTab);
-        }
-      }
+      const mp = this.periodParams(); if (this.masterStore) mp.store = this.masterStore;
+      try { this.masterData = this._normalizeMaster(await this.api('/api/master/'+this.masterTab, mp), this.masterTab); }
       catch(e) { this.error = e.message; }
       this.loading = false;
-    },
-
-    async _loadMasterRange(tab) {
-      const months = [];
-      let y = this.startYear, m = this.startMonth;
-      while (y < this.endYear || (y === this.endYear && m <= this.endMonth)) {
-        months.push(y + '-' + String(m).padStart(2, '0'));
-        m++; if (m > 12) { m = 1; y++; }
-      }
-      const results = await Promise.all(months.map(async pk => {
-        try {
-          const r = await fetch('/data/master/' + tab + '/' + pk + '.json');
-          const ct = r.headers.get('content-type') || '';
-          if (r.ok && ct.includes('application/json')) return r.json();
-        } catch(e) {}
-        return null;
-      }));
-      const valid = results.filter(Boolean);
-      if (!valid.length) {
-        // Fallback to all-time file
-        const r = await fetch('/data/master/' + tab + '.json');
-        if (r.ok) return r.json();
-        throw new Error('No master data for this range');
-      }
-      return this._mergeMasterData(valid, tab);
-    },
-
-    _mergeMasterData(files, tab) {
-      const mergeRows = (key, nameField) => {
-        const map = {};
-        files.forEach(d => (d[key]||[]).forEach(r => {
-          const n = r[nameField] || r.name || 'Unknown';
-          if (!map[n]) map[n] = { ...r, _rev: 0, _profit: 0, _fpRev: 0, _discRev: 0, _units: 0 };
-          else {
-            const m = map[n];
-            const rev = r.total_revenue??r.revenue??0, prof = r.net_profit??r.profit??0;
-            const units = r.total_units??r.units??0;
-            m._rev = (m._rev||0) + rev; m._profit = (m._profit||0) + prof; m._units = (m._units||0) + units;
-            m._fpRev = (m._fpRev||0) + (r.full_price_revenue??0);
-            m._discRev = (m._discRev||0) + (r.discounted_revenue??0);
-          }
-        }));
-        // First pass already set initial values; fix by re-initializing
-        const map2 = {};
-        files.forEach(d => (d[key]||[]).forEach(r => {
-          const n = r[nameField] || r.name || 'Unknown';
-          if (!map2[n]) map2[n] = { [nameField]: n, name: n, rev: 0, profit: 0, units: 0, fp_rev: 0, disc_rev: 0, cnt: 0, fp_sum: 0, fp_margin_sum: 0, disc_margin_sum: 0 };
-          const m = map2[n];
-          const rev = r.total_revenue??r.revenue??0, prof = r.net_profit??r.profit??0;
-          m.rev += rev; m.profit += prof; m.units += (r.total_units??r.units??0);
-          m.fp_sum += (r.pct_full_price??r.fp_pct??0); m.cnt++;
-          m.fp_margin_sum += (r.full_price_margin??r.fp_margin??0) * rev;
-          m.disc_margin_sum += (r.discounted_margin??r.disc_margin??0) * rev;
-        }));
-        return Object.values(map2).map(m => ({
-          [nameField]: m[nameField], name: m.name,
-          total_revenue: m.rev, revenue: m.rev, net_profit: m.profit, profit: m.profit,
-          total_units: m.units, units: m.units,
-          blended_margin: m.rev ? Math.round(m.profit / m.rev * 1000) / 10 : 0,
-          pct_full_price: m.cnt ? Math.round(m.fp_sum / m.cnt * 10) / 10 : 0,
-          full_price_margin: m.rev ? Math.round(m.fp_margin_sum / m.rev * 10) / 10 : 0,
-          discounted_margin: m.rev ? Math.round(m.disc_margin_sum / m.rev * 10) / 10 : 0,
-        })).sort((a,b) => b.rev - a.rev);
-      };
-      if (tab === 'margin') {
-        const totRev = files.reduce((a,d) => a + (d.totals?.total_revenue??0), 0);
-        const totProfit = files.reduce((a,d) => a + (d.totals?.net_profit??0), 0);
-        const totUnits = files.reduce((a,d) => a + (d.totals?.total_units??0), 0);
-        const n = files.length;
-        const fpMarginSum = files.reduce((a,d) => a + (d.totals?.full_price_margin??0) * (d.totals?.total_revenue??0), 0);
-        const discMarginSum = files.reduce((a,d) => a + (d.totals?.discounted_margin??0) * (d.totals?.total_revenue??0), 0);
-        const fpPct = files.reduce((a,d) => a + (d.totals?.pct_full_price??0), 0) / n;
-        return {
-          date_range: this.periodLabel,
-          totals: {
-            total_revenue: totRev, net_profit: totProfit, total_units: totUnits,
-            blended_margin: totRev ? Math.round(totProfit / totRev * 1000) / 10 : 0,
-            full_price_margin: totRev ? Math.round(fpMarginSum / totRev * 10) / 10 : 0,
-            discounted_margin: totRev ? Math.round(discMarginSum / totRev * 10) / 10 : 0,
-            pct_full_price: Math.round(fpPct * 10) / 10,
-          },
-          by_store: mergeRows('by_store', 'store'),
-          by_brand: mergeRows('by_brand', 'brand'),
-          by_category: mergeRows('by_category', 'category'),
-          by_deal_type: mergeRows('by_deal_type', 'deal_type'),
-        };
-      }
-      if (tab === 'deals') {
-        const dtMap = {};
-        files.forEach(d => (d.deal_types||[]).forEach(r => {
-          const n = r.deal_type||r.name;
-          if (!dtMap[n]) dtMap[n] = { deal_type: n, count: 0, revenue: 0, profit: 0, disc_sum: 0, cnt: 0 };
-          dtMap[n].count += (r.count??0); dtMap[n].revenue += (r.actual_revenue??r.revenue??0);
-          dtMap[n].profit += (r.net_profit??r.profit??0); dtMap[n].disc_sum += (r.discount_rate??0); dtMap[n].cnt++;
-        }));
-        const dealTypes = Object.values(dtMap).map(d => ({
-          deal_type: d.deal_type, count: d.count, actual_revenue: d.revenue, revenue: d.revenue,
-          net_profit: d.profit, profit: d.profit,
-          discount_rate: d.cnt ? Math.round(d.disc_sum / d.cnt * 10) / 10 : 0,
-          margin: d.revenue ? Math.round(d.profit / d.revenue * 1000) / 10 : 0,
-        })).sort((a,b) => b.revenue - a.revenue);
-        const topDeals = files.flatMap(d => d.top_deals||[]);
-        const tdMap = {};
-        topDeals.forEach(d => {
-          const k = d.deal_name||d.name;
-          if (!tdMap[k]) tdMap[k] = { ...d, revenue: 0, count: 0, profit: 0 };
-          tdMap[k].revenue += (d.actual_revenue??d.revenue??0);
-          tdMap[k].count += (d.count??0);
-          tdMap[k].profit += (d.net_profit??d.profit??0);
-        });
-        return { date_range: this.periodLabel, deal_types: dealTypes, top_deals: Object.values(tdMap).sort((a,b) => (b.revenue||0) - (a.revenue||0)).slice(0,30) };
-      }
-      // For budtenders, customers, rewards — just use the all-time file as fallback
-      return files[files.length - 1];
     },
 
     async loadDMFiles() {

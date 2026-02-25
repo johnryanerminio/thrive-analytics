@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Thrive Analytics</title>
+  <title>Elevation Analytics</title>
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -478,7 +478,7 @@
   <aside class="sidebar" :class="sidebarOpen && 'open'">
     <!-- Logo -->
     <div class="flex items-center gap-3 px-5 py-5 border-b border-white/5">
-      <img src="/logo.png" class="w-10 h-10" style="filter: brightness(0) invert(1)" alt="Thrive">
+      <img src="/logo.png" class="w-10 h-10" style="filter: brightness(0) invert(1)" alt="Elevation">
       <div>
         <div class="text-white font-bold text-sm tracking-wider">THRIVE</div>
         <div class="text-[#64748b] text-[11px] tracking-widest">ANALYTICS</div>
@@ -605,7 +605,7 @@
             <div class="px-3 py-2.5 text-sm cursor-pointer hover:bg-[rgba(56,189,248,0.06)] text-[#cbd5e1] flex items-center gap-1.5"
                  @click="selectedBrand = b; brandSearch = b; showBrandDD = false; loadBrandReport();">
               <span x-text="b"></span>
-              <img x-show="internalBrands.has(b.toUpperCase())" src="/logo.png" class="w-4 h-4" style="filter: brightness(0) saturate(100%) invert(70%) sepia(50%) saturate(500%) hue-rotate(175deg) brightness(100%)" title="Thrive In-House Brand">
+              <img x-show="internalBrands.has(b.toUpperCase())" src="/logo.png" class="w-4 h-4" style="filter: brightness(0) saturate(100%) invert(70%) sepia(50%) saturate(500%) hue-rotate(175deg) brightness(100%)" title="In-House Brand">
             </div>
           </template>
         </div>
@@ -1323,7 +1323,7 @@
 
           <!-- Company Header -->
           <div class="mb-6 p-5 bg-[#151C26] border border-[#1F2937] rounded-xl">
-            <div class="text-lg font-bold tracking-wide text-[#f8fafc]">Thrive Cannabis</div>
+            <div class="text-lg font-bold tracking-wide text-[#f8fafc]">Elevation Cannabis</div>
             <div class="text-gold text-sm font-semibold mt-1" x-text="yearEndYear + ' Annual Performance Report'"></div>
             <div class="text-[#64748b] text-xs mt-2">
               <span x-text="yearEndData.header?.stores || 0"></span> Stores &middot;
@@ -1534,7 +1534,7 @@
 
           <!-- Footer -->
           <div class="text-center text-xs text-[#64748b] py-6 border-t border-muted">
-            Generated on <span x-text="new Date().toLocaleDateString()"></span> &mdash; Thrive Cannabis &mdash; Confidential
+            Generated on <span x-text="new Date().toLocaleDateString()"></span> &mdash; Elevation Cannabis &mdash; Confidential
           </div>
         </div>
       </div>
@@ -1561,7 +1561,7 @@
         <!-- Selected brand label -->
         <div class="text-sm text-[#94a3b8] font-medium flex items-center gap-2" x-show="selectedBrand" x-cloak>
           Viewing: <span class="text-primary font-semibold" x-text="selectedBrand"></span>
-          <img x-show="selectedBrand && internalBrands.has(selectedBrand.toUpperCase())" src="/logo.png" class="w-4 h-4" style="filter: brightness(0) saturate(100%) invert(70%) sepia(50%) saturate(500%) hue-rotate(175deg) brightness(100%)" title="Thrive In-House Brand">
+          <img x-show="selectedBrand && internalBrands.has(selectedBrand.toUpperCase())" src="/logo.png" class="w-4 h-4" style="filter: brightness(0) saturate(100%) invert(70%) sepia(50%) saturate(500%) hue-rotate(175deg) brightness(100%)" title="In-House Brand">
         </div>
 
         <div class="sm:ml-auto flex items-center gap-2 flex-wrap">
@@ -2207,7 +2207,7 @@
                 class="px-3 py-2.5 md:py-1.5 text-sm border border-muted rounded-lg bg-[#161922] text-[#cbd5e1] focus:outline-none focus:border-gold">
           <option value="">All Stores</option>
           <template x-for="s in stores" :key="s">
-            <option :value="s" x-text="s.replace('Thrive Cannabis ','').replace('Thrive ','')"></option>
+            <option :value="s" x-text="s.replace('Elevation Cannabis ','').replace('Elevation ','')"></option>
           </template>
         </select>
         <div class="sm:ml-auto flex items-center gap-2">
@@ -2350,7 +2350,7 @@
                           <a href="#" class="text-[#f8fafc] hover:text-gold hover:underline"
                              @click.prevent="selectedBrand = b.brand; brandSearch = b.brand; switchView('brands'); loadBrandReport();"
                              x-text="b.brand"></a>
-                          <img x-show="internalBrands.has((b.brand||'').toUpperCase())" src="/logo.png" class="w-4 h-4" style="filter: brightness(0) saturate(100%) invert(70%) sepia(50%) saturate(500%) hue-rotate(175deg) brightness(100%)" title="Thrive In-House Brand">
+                          <img x-show="internalBrands.has((b.brand||'').toUpperCase())" src="/logo.png" class="w-4 h-4" style="filter: brightness(0) saturate(100%) invert(70%) sepia(50%) saturate(500%) hue-rotate(175deg) brightness(100%)" title="In-House Brand">
                         </div>
                       </td>
                       <td class="text-right" x-text="fmtCurrency(b.revenue)"></td>
@@ -3545,7 +3545,7 @@ function dashboard() {
       if (d.top_stores?.length) {
         this._c('chart-exec-stores', {
           type: 'bar',
-          data: { labels: d.top_stores.map(s=>s.name.replace('Thrive Cannabis ','').replace('Thrive ','')), datasets: [{label:'Revenue',data:d.top_stores.map(s=>s.revenue),backgroundColor:'#A78BFA',borderRadius:6}] },
+          data: { labels: d.top_stores.map(s=>s.name.replace('Elevation Cannabis ','').replace('Elevation ','')), datasets: [{label:'Revenue',data:d.top_stores.map(s=>s.revenue),backgroundColor:'#A78BFA',borderRadius:6}] },
           options: { indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{ticks:{callback:v=>'$'+(v>=1e6?(v/1e6).toFixed(1)+'M':(v/1e3).toFixed(0)+'K')}}} }
         });
       }
@@ -3561,7 +3561,7 @@ function dashboard() {
       const avg = this.storeData.company_avg_margin || 0;
       this._c('chart-store-revenue', {
         type: 'bar',
-        data: { labels: s.map(x=>x.name.replace('Thrive Cannabis ','').replace('Thrive ','')),
+        data: { labels: s.map(x=>x.name.replace('Elevation Cannabis ','').replace('Elevation ','')),
           datasets: [{label:'Revenue',data:s.map(x=>x.revenue),backgroundColor:'#38BDF8',borderRadius:6}] },
         options: { indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{ticks:{callback:v=>'$'+(v>=1e6?(v/1e6).toFixed(1)+'M':(v/1e3).toFixed(0)+'K')}}} }
       });

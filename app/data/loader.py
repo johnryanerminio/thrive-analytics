@@ -11,6 +11,7 @@ import pandas as pd
 from app.config import (
     INBOX_FOLDER, SALES_KEYWORDS, BT_PERFORMANCE_KEYWORDS, CUSTOMER_KEYWORDS,
     INTERNAL_BRAND_COSTS, COST_CORRECTION_YEARS, PRE_ROLL_CATEGORIES,
+    CART_CATEGORIES, DISPOSABLE_CATEGORIES,
 )
 from app.data.normalize import normalize_columns, normalize_categories, classify_transaction, classify_deal_type
 
@@ -136,6 +137,8 @@ def apply_internal_cost_corrections(df: pd.DataFrame) -> pd.DataFrame:
 
     total_corrected = 0
     is_preroll = df["category_clean"].isin(PRE_ROLL_CATEGORIES)
+    is_cart = df["category_clean"].isin(CART_CATEGORIES)
+    is_disposable = df["category_clean"].isin(DISPOSABLE_CATEGORIES)
 
     for brand_upper, prices in INTERNAL_BRAND_COSTS.items():
         brand_mask = df["brand_clean"].str.upper() == brand_upper
@@ -149,10 +152,22 @@ def apply_internal_cost_corrections(df: pd.DataFrame) -> pd.DataFrame:
             if count == 0:
                 continue
 
-            # Apply per-unit cost: pre-roll categories get $4, others get default
-            # Use float32 to match column dtype and avoid upcasting
-            new_cost_per_unit = pd.Series(prices["default"], index=df.index, dtype="float32")
-            new_cost_per_unit = new_cost_per_unit.where(~is_preroll, float(prices["pre_roll"]))
+            # Build per-unit cost based on which category keys exist in prices
+            # Brands use either default/pre_roll or cart/disposable pricing
+            if "cart" in prices:
+                # Cart/disposable pricing (FADE, RETREAT)
+                new_cost_per_unit = pd.Series(0.0, index=df.index, dtype="float32")
+                new_cost_per_unit[is_cart] = prices["cart"]
+                new_cost_per_unit[is_disposable] = prices["disposable"]
+                # Only correct rows that match cart or disposable categories
+                year_mask = year_mask & (is_cart | is_disposable)
+                count = year_mask.sum()
+                if count == 0:
+                    continue
+            else:
+                # Default/pre-roll pricing (HAUS, H&G, PISTOLA, G&G)
+                new_cost_per_unit = pd.Series(prices["default"], index=df.index, dtype="float32")
+                new_cost_per_unit = new_cost_per_unit.where(~is_preroll, float(prices["pre_roll"]))
 
             new_cost = (df.loc[year_mask, "quantity"].astype("float32") * new_cost_per_unit[year_mask]).astype("float32")
             df.loc[year_mask, "cost"] = new_cost

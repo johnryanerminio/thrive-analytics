@@ -104,13 +104,15 @@ CUSTOMER_SEGMENTS = [
 # Flowhub cost data is unreliable for these house brands:
 #   - 2024: costs were $0 or pennies
 #   - 2025: costs were inflated/inaccurate
-#   - 2026+: costs are accurate, no correction needed
+#   - 2026: HAUS and H&G costs confirmed at $6.62; Pistola/G&G also corrected
 # ---------------------------------------------------------------------------
 INTERNAL_BRAND_COSTS = {
     "HAUS":         {"default": 6.62, "pre_roll": 4.00},
     "HUSTLE & GROW": {"default": 6.62, "pre_roll": 4.00},
     "PISTOLA":      {"default": 8.63,  "pre_roll": 4.00},
     "GREEN & GOLD": {"default": 8.63,  "pre_roll": 4.00},
+    "FADE":         {"cart": 10.61, "disposable": 12.44},
+    "RETREAT":      {"cart": 10.61, "disposable": 12.44},
 }
 
 # "conditional" = only replace when cost_per_item < $1
@@ -118,9 +120,12 @@ INTERNAL_BRAND_COSTS = {
 COST_CORRECTION_YEARS = {
     2024: "unconditional",
     2025: "unconditional",
+    2026: "unconditional",
 }
 
 PRE_ROLL_CATEGORIES = {"PRE ROLL", "PRE ROLL PACK"}
+CART_CATEGORIES = {"CARTRIDGE"}
+DISPOSABLE_CATEGORIES = {"DISPOSABLE VAPE"}
 
 # ---------------------------------------------------------------------------
 # In-house brand names (for visual indicators in the UI)

@@ -6,6 +6,12 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from app.config import (
+    BT_WEIGHT_CART, BT_WEIGHT_UNITS, BT_WEIGHT_DISCOUNT,
+    BT_WEIGHT_LOYALTY, BT_WEIGHT_F2F,
+    BT_TIER_TOP, BT_TIER_SOLID, BT_TIER_DEVELOPING,
+)
+
 
 def compute_sales_scores(
     bt_df: pd.DataFrame,
@@ -47,12 +53,12 @@ def compute_sales_scores(
 
     if len(bt_min) > 0:
         _range = lambda s: s.max() - s.min() + 0.01
-        bt_min["cart_score"] = (bt_min["avg_cart_value"] - bt_min["avg_cart_value"].min()) / _range(bt_min["avg_cart_value"]) * 30
-        bt_min["units_score"] = (bt_min["avg_units_per_cart"] - bt_min["avg_units_per_cart"].min()) / _range(bt_min["avg_units_per_cart"]) * 25
-        bt_min["discount_score"] = (100 - bt_min["pct_sales_discounted"]) / 100 * 20
+        bt_min["cart_score"] = (bt_min["avg_cart_value"] - bt_min["avg_cart_value"].min()) / _range(bt_min["avg_cart_value"]) * BT_WEIGHT_CART
+        bt_min["units_score"] = (bt_min["avg_units_per_cart"] - bt_min["avg_units_per_cart"].min()) / _range(bt_min["avg_units_per_cart"]) * BT_WEIGHT_UNITS
+        bt_min["discount_score"] = (100 - bt_min["pct_sales_discounted"]) / 100 * BT_WEIGHT_DISCOUNT
         loy_max = bt_min["loyalty_enrollments"].max()
-        bt_min["loyalty_score"] = (bt_min["loyalty_enrollments"] / loy_max * 15) if loy_max > 0 else 0
-        bt_min["f2f_score"] = bt_min["face_to_face_pct"] / 100 * 10
+        bt_min["loyalty_score"] = (bt_min["loyalty_enrollments"] / loy_max * BT_WEIGHT_LOYALTY) if loy_max > 0 else 0
+        bt_min["f2f_score"] = bt_min["face_to_face_pct"] / 100 * BT_WEIGHT_F2F
         bt_min["sales_score"] = (
             bt_min["cart_score"] + bt_min["units_score"] + bt_min["discount_score"]
             + bt_min["loyalty_score"] + bt_min["f2f_score"]
@@ -66,11 +72,11 @@ def compute_sales_scores(
 
 
 def _get_tier(score: float) -> str:
-    if score >= 70:
+    if score >= BT_TIER_TOP:
         return "Top Performer"
-    if score >= 50:
+    if score >= BT_TIER_SOLID:
         return "Solid"
-    if score >= 30:
+    if score >= BT_TIER_DEVELOPING:
         return "Developing"
     return "Needs Coaching"
 

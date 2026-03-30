@@ -29,8 +29,10 @@ def company_margin_totals(regular_df: pd.DataFrame) -> dict:
     )
 
     zeros = pd.Series({"quantity": 0, "revenue": 0.0, "cost": 0.0, "profit": 0.0})
-    fp = g.loc[False] if False in g.index else zeros
-    disc = g.loc[True] if True in g.index else zeros
+    has_fp = False in g.index
+    has_disc = True in g.index
+    fp = g.loc[False] if has_fp else zeros
+    disc = g.loc[True] if has_disc else zeros
 
     total_revenue = fp["revenue"] + disc["revenue"]
     total_cost = fp["cost"] + disc["cost"]
@@ -48,8 +50,8 @@ def company_margin_totals(regular_df: pd.DataFrame) -> dict:
         "discounted_cost": float(disc["cost"]),
         "pct_full_price": round(safe_divide(fp["revenue"], total_revenue) * 100, 1),
         "pct_discounted": round(safe_divide(disc["revenue"], total_revenue) * 100, 1),
-        "full_price_margin": round(calc_margin(fp["revenue"], fp["cost"]), 1),
-        "discounted_margin": round(calc_margin(disc["revenue"], disc["cost"]), 1),
+        "full_price_margin": round(calc_margin(fp["revenue"], fp["cost"]), 1) if has_fp else None,
+        "discounted_margin": round(calc_margin(disc["revenue"], disc["cost"]), 1) if has_disc else None,
         "blended_margin": round(calc_margin(total_revenue, total_cost), 1),
     }
 
@@ -171,35 +173,36 @@ def discount_depth_distribution(brand_df: pd.DataFrame) -> list[dict]:
     pre = df["pre_discount_revenue"] if "pre_discount_revenue" in df.columns else df["actual_revenue"] + df["discounts"]
     df["discount_pct"] = (df["discounts"] / pre.replace(0, np.nan) * 100).fillna(0)
 
+    # Each tier: (label, lo_exclusive, hi_inclusive)
+    # First tier is special: exact match on 0
     tiers = [
-        ("0% (Full Price)", 0, 0),
-        ("1-10%", 0.01, 10),
-        ("11-20%", 10.01, 20),
-        ("21-30%", 20.01, 30),
-        ("31%+", 30.01, 100),
+        ("0% (Full Price)", None, None),   # exact zero
+        ("1-10%",   0, 10),                # (0, 10]
+        ("11-20%", 10, 20),                # (10, 20]
+        ("21-30%", 20, 30),                # (20, 30]
+        ("31%+",   30, 100),               # (30, 100]
     ]
 
     result = []
     total = len(df)
     for label, lo, hi in tiers:
-        if lo == 0 and hi == 0:
-            count = (df["discount_pct"] == 0).sum()
+        if lo is None:
+            # Full price: exactly 0%
+            mask = df["discount_pct"] == 0
         else:
-            count = ((df["discount_pct"] > lo) & (df["discount_pct"] <= hi)).sum()
-        revenue = df.loc[
-            (df["discount_pct"] >= lo) & (df["discount_pct"] <= hi), "actual_revenue"
-        ].sum() if lo == 0 and hi == 0 else df.loc[
-            (df["discount_pct"] > lo) & (df["discount_pct"] <= hi), "actual_revenue"
-        ].sum()
+            # Discounted: (lo, hi]
+            mask = (df["discount_pct"] > lo) & (df["discount_pct"] <= hi)
+
+        count = int(mask.sum())
+        revenue = float(df.loc[mask, "actual_revenue"].sum())
+        avg_disc = round(float(df.loc[mask, "discount_pct"].mean()), 1) if count > 0 else 0
+
         result.append({
             "tier": label,
-            "transactions": int(count),
+            "transactions": count,
             "pct_of_transactions": round(safe_divide(count, total) * 100, 1),
-            "revenue": float(revenue),
-            "avg_discount": round(df.loc[
-                (df["discount_pct"] >= (lo if lo == 0 else lo)) &
-                (df["discount_pct"] <= hi), "discount_pct"
-            ].mean(), 1) if count > 0 else 0,
+            "revenue": revenue,
+            "avg_discount": avg_disc,
         })
 
     return result

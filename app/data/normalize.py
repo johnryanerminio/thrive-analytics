@@ -28,8 +28,12 @@ def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     df["completed_at"] = pd.to_datetime(
         df["completed_at"], format="%m/%d/%Y %I:%M:%S %p", errors="coerce"
     )
-    df["sale_date"] = df["completed_at"].dt.date
+    n_before = len(df)
     df = df.dropna(subset=["completed_at"])
+    n_dropped = n_before - len(df)
+    if n_dropped:
+        print(f"  Warning: {n_dropped:,} rows dropped (unparseable dates)")
+    df["sale_date"] = df["completed_at"].dt.date
 
     # Clean strings
     df["store_clean"] = df["store"].str.replace(r" - RD\d+", "", regex=True).str.strip()

@@ -147,3 +147,50 @@ EXCLUDED_STORES = {"Thrive Commerce"}
 # Share link defaults
 # ---------------------------------------------------------------------------
 SHARE_EXPIRY_DAYS = 30
+
+# ---------------------------------------------------------------------------
+# Business-rule thresholds (centralized for easy tuning)
+# ---------------------------------------------------------------------------
+
+# Sales mix health — full-price percentage thresholds
+SALES_MIX_HEALTHY_PCT = 35
+SALES_MIX_WATCH_PCT = 25
+
+# Margin thresholds for dashboard insights
+MARGIN_EXCELLENT_PCT = 55
+MARGIN_BELOW_TARGET_PCT = 40
+DISCOUNT_DEPENDENCY_PCT = 30
+MARGIN_GAP_SIGNIFICANT_PTS = 15
+
+# Recommendation thresholds
+REC_MARGIN_VS_CAT_GAP_PTS = -5
+REC_PROMO_DEPENDENCY_PCT = 25
+REC_LOW_DISC_MARGIN_PCT = 35
+REC_VOLUME_LEVERAGE_REVENUE = 5000
+REC_HIGH_PRIORITY_CATEGORY_REVENUE = 10000
+
+# Budtender scoring weights (must sum to 100)
+BT_WEIGHT_CART = 30
+BT_WEIGHT_UNITS = 25
+BT_WEIGHT_DISCOUNT = 20
+BT_WEIGHT_LOYALTY = 15
+BT_WEIGHT_F2F = 10
+
+# Budtender tier thresholds
+BT_TIER_TOP = 70
+BT_TIER_SOLID = 50
+BT_TIER_DEVELOPING = 30
+
+# ---------------------------------------------------------------------------
+# Monthly Operating Expenses (for EBITDA proxy calculation)
+# These are TOTAL monthly figures across all stores.
+# Update with actuals from your CFO — placeholder zeros until then.
+# ---------------------------------------------------------------------------
+MONTHLY_OPEX = {
+    "labor": 0,              # total monthly payroll + benefits
+    "rent": 0,               # total monthly rent / occupancy
+    "utilities": 0,          # utilities, insurance, misc operating
+    "other_opex": 0,         # other operating expenses
+    "depreciation": 0,       # monthly depreciation & amortization (added back for EBITDA)
+}
+OPEX_CONFIGURED = any(v > 0 for v in MONTHLY_OPEX.values())

@@ -209,10 +209,19 @@ def _checked_replace(html: str, old: str, new: str, label: str) -> str:
     return html.replace(old, new, 1)
 
 
+_EXPORT_VERSION_MARKER = "THRIVE_STATIC_EXPORT_V2"
+
 def _generate_static_index(out: Path):
     """Read app/static/index.html and patch it for static-file mode."""
     src = Path(__file__).parent / "static" / "index.html"
     html = src.read_text()
+
+    if _EXPORT_VERSION_MARKER not in html:
+        raise RuntimeError(
+            f"index.html is missing version marker '{_EXPORT_VERSION_MARKER}'. "
+            f"The HTML structure may have changed — static export patches will likely fail. "
+            f"Update the marker and verify all patches still match."
+        )
 
     # --- 1. Replace api() method with static file resolver ---
     old_api = """    async api(path, params = {}) {
@@ -707,7 +716,7 @@ def cmd_export(args):
             report = brand_disp_json(store, brand, None, None)
             _write_json(out / f"data/brands/{slug}/report.json", report)
         except Exception as e:
-            print(f"    WARNING: {brand} dispensary report failed: {e}")
+            export_failures.append(f"{brand} dispensary: {e}")
         try:
             facing = brand_face_json(store, brand, None)
             _write_json(out / f"data/brands/{slug}/facing.json", facing)

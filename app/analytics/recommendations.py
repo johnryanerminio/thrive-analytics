@@ -7,6 +7,11 @@ import pandas as pd
 import numpy as np
 
 from app.analytics.common import safe_divide, calc_margin
+from app.config import (
+    REC_MARGIN_VS_CAT_GAP_PTS, REC_PROMO_DEPENDENCY_PCT,
+    REC_LOW_DISC_MARGIN_PCT, REC_VOLUME_LEVERAGE_REVENUE,
+    REC_HIGH_PRIORITY_CATEGORY_REVENUE,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -45,7 +50,7 @@ def dispensary_recommendations(
             })
 
     # Overall benchmark gap
-    if margin_vs_cat < -5:
+    if margin_vs_cat < REC_MARGIN_VS_CAT_GAP_PTS:
         recs.append({
             "severity": "yellow",
             "title": "CATEGORY BENCHMARK GAP",
@@ -55,7 +60,7 @@ def dispensary_recommendations(
         })
 
     # Promotion dependency
-    if pct_fp < 25:
+    if pct_fp < REC_PROMO_DEPENDENCY_PCT:
         recs.append({
             "severity": "red",
             "title": "HIGH PROMOTION DEPENDENCY",
@@ -64,7 +69,7 @@ def dispensary_recommendations(
         })
 
     # Low discounted margin
-    if disc_margin < 35 and brand_summary["disc_revenue"] > 0:
+    if disc_margin < REC_LOW_DISC_MARGIN_PCT and brand_summary["disc_revenue"] > 0:
         recs.append({
             "severity": "red",
             "title": "LOW DISCOUNTED MARGIN",
@@ -84,7 +89,7 @@ def dispensary_recommendations(
             })
 
     # Volume leverage
-    if total_revenue > 5000:
+    if total_revenue > REC_VOLUME_LEVERAGE_REVENUE:
         recs.append({
             "severity": "info",
             "title": "VOLUME LEVERAGE",
@@ -128,7 +133,7 @@ def brand_facing_recommendations(
                     "type": "distribution",
                     "title": f"Expand to {store}",
                     "detail": f"Store has ${cat_rev:,.0f} in {', '.join(sorted(overlap))} — categories where {brand_name} competes.",
-                    "priority": "high" if cat_rev > 10000 else "medium",
+                    "priority": "high" if cat_rev > REC_HIGH_PRIORITY_CATEGORY_REVENUE else "medium",
                 })
 
     # SKU expansion opportunities (products at some stores but not all)

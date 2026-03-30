@@ -13,6 +13,12 @@ import pandas as pd
 from app.data.store import DataStore
 from app.data.schemas import PeriodFilter
 from app.analytics.common import safe_divide, pct_of_total, pct_change, sanitize_for_json
+from app.config import (
+    SALES_MIX_HEALTHY_PCT, SALES_MIX_WATCH_PCT,
+    MARGIN_EXCELLENT_PCT, MARGIN_BELOW_TARGET_PCT,
+    DISCOUNT_DEPENDENCY_PCT, MARGIN_GAP_SIGNIFICANT_PTS,
+    MONTHLY_OPEX, OPEX_CONFIGURED,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -98,9 +104,9 @@ def _sales_mix(regular: pd.DataFrame) -> dict:
     fp_margin = safe_divide(fp_profit, fp_rev) * 100
     disc_margin = safe_divide(disc_profit, disc_rev) * 100
 
-    if fp_pct >= 35:
+    if fp_pct >= SALES_MIX_HEALTHY_PCT:
         health = "healthy"
-    elif fp_pct >= 25:
+    elif fp_pct >= SALES_MIX_WATCH_PCT:
         health = "watch"
     else:
         health = "concern"
@@ -162,13 +168,13 @@ def _generate_insights(
     fp_pct = sales_mix.get("full_price_pct", 0)
 
     # Margin health
-    if margin >= 55:
+    if margin >= MARGIN_EXCELLENT_PCT:
         insights.append({
             "type": "success",
             "title": "Strong Margins",
             "detail": f"Blended margin of {margin:.1f}% is excellent — well above industry norms.",
         })
-    elif margin < 40:
+    elif margin < MARGIN_BELOW_TARGET_PCT:
         insights.append({
             "type": "warning",
             "title": "Margin Pressure",
@@ -176,13 +182,13 @@ def _generate_insights(
         })
 
     # Discount dependency
-    if fp_pct < 30:
+    if fp_pct < DISCOUNT_DEPENDENCY_PCT:
         insights.append({
             "type": "warning",
             "title": "High Discount Dependency",
             "detail": f"Only {fp_pct:.1f}% of revenue is full-price. {sales_mix.get('discounted_pct', 0):.1f}% of sales are discounted.",
         })
-    elif fp_pct >= 40:
+    elif fp_pct >= SALES_MIX_HEALTHY_PCT + 5:
         insights.append({
             "type": "success",
             "title": "Healthy Sales Mix",
@@ -191,7 +197,7 @@ def _generate_insights(
 
     # Margin gap
     gap = sales_mix.get("margin_gap_pts", 0)
-    if gap > 15:
+    if gap > MARGIN_GAP_SIGNIFICANT_PTS:
         insights.append({
             "type": "info",
             "title": "Significant Margin Gap",
@@ -200,11 +206,11 @@ def _generate_insights(
 
     # Store-level warnings
     for s in stores:
-        if s.get("margin", 100) < 40:
+        if s.get("margin", 100) < MARGIN_BELOW_TARGET_PCT:
             insights.append({
                 "type": "warning",
                 "title": f"{s['name']} Needs Attention",
-                "detail": f"Margin of {s['margin']:.1f}% is below 40%. Review store operations and pricing.",
+                "detail": f"Margin of {s['margin']:.1f}% is below {MARGIN_BELOW_TARGET_PCT}%. Review store operations and pricing.",
             })
 
     # Month-over-month trend
@@ -317,6 +323,44 @@ def executive_summary(store: DataStore, period: PeriodFilter | None) -> dict:
     # Auto-generated insights
     insights = _generate_insights(kpis, monthly, top_stores, mix)
 
+    # P&L waterfall
+    cost = float(regular["cost"].sum())
+    gross_profit = revenue - cost
+    gross_margin_pct = round(safe_divide(gross_profit, revenue) * 100, 1)
+    pnl = {
+        "revenue": revenue,
+        "cogs": cost,
+        "gross_profit": gross_profit,
+        "gross_margin_pct": gross_margin_pct,
+        "total_discounts": discounts,
+        "net_after_discounts": revenue - discounts,
+    }
+
+    # EBITDA proxy (only if OpEx is configured)
+    ebitda_proxy = None
+    if OPEX_CONFIGURED:
+        total_opex_labor = MONTHLY_OPEX["labor"] * n_months
+        total_opex_rent = MONTHLY_OPEX["rent"] * n_months
+        total_opex_utilities = MONTHLY_OPEX["utilities"] * n_months
+        total_opex_other = MONTHLY_OPEX["other_opex"] * n_months
+        total_opex = total_opex_labor + total_opex_rent + total_opex_utilities + total_opex_other
+        total_da = MONTHLY_OPEX["depreciation"] * n_months
+        ebit = gross_profit - total_opex
+        ebitda = ebit + total_da
+        ebitda_proxy = {
+            "months": n_months,
+            "gross_profit": gross_profit,
+            "labor": total_opex_labor,
+            "rent": total_opex_rent,
+            "utilities": total_opex_utilities,
+            "other_opex": total_opex_other,
+            "total_opex": total_opex,
+            "ebit": ebit,
+            "depreciation": total_da,
+            "ebitda": ebitda,
+            "ebitda_margin_pct": round(safe_divide(ebitda, revenue) * 100, 1),
+        }
+
     return sanitize_for_json({
         "period_label": label,
         "date_range": store.date_range(period),
@@ -328,6 +372,8 @@ def executive_summary(store: DataStore, period: PeriodFilter | None) -> dict:
         "top_categories": top_categories,
         "top_stores": top_stores,
         "insights": insights,
+        "pnl": pnl,
+        "ebitda_proxy": ebitda_proxy,
     })
 
 

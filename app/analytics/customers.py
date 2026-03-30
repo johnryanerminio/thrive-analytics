@@ -6,7 +6,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from app.analytics.common import safe_divide, fillna_numeric
+from app.analytics.common import safe_divide, fillna_numeric, calc_discount_rate, calc_discount_rate_series
 from app.data.normalize import get_customer_segment
 
 
@@ -34,11 +34,7 @@ def customer_metrics(
     cust = cust.merge(avg_txn, on="customer_id", how="left")
 
     # Discount rate
-    cust["discount_rate"] = (
-        cust["total_discounts"]
-        / (cust["total_spent"] + cust["total_discounts"]).replace(0, np.nan)
-        * 100
-    ).round(1)
+    cust["discount_rate"] = calc_discount_rate_series(cust["total_discounts"], cust["total_spent"])
 
     # Merge customer attributes
     if cust_attr_df is not None and "customer_id" in cust_attr_df.columns:
@@ -75,7 +71,7 @@ def customer_summary(sales_df: pd.DataFrame, cust_attr_df: pd.DataFrame | None =
         "total_transactions": int(total_trans),
         "avg_transaction": round(safe_divide(total_rev, total_trans), 2),
         "total_discounts": float(total_disc),
-        "discount_rate": round(safe_divide(total_disc, total_rev + total_disc) * 100, 1),
+        "discount_rate": round(calc_discount_rate(total_disc, total_rev + total_disc), 1),
     }
 
 
@@ -89,7 +85,7 @@ def segment_summary(cust_df: pd.DataFrame, total_revenue: float) -> list[dict]:
     ).reset_index()
 
     seg["rev_per_cust"] = (seg["total_revenue"] / seg["customers"]).round(2)
-    seg["discount_rate"] = (seg["total_discounts"] / (seg["total_revenue"] + seg["total_discounts"]).replace(0, np.nan) * 100).round(1)
+    seg["discount_rate"] = calc_discount_rate_series(seg["total_discounts"], seg["total_revenue"])
     seg["pct_of_cust"] = (seg["customers"] / total_cust * 100).round(1)
     seg["pct_of_rev"] = (seg["total_revenue"] / total_revenue * 100).round(1) if total_revenue > 0 else 0
     seg = seg.sort_values("total_revenue", ascending=False)

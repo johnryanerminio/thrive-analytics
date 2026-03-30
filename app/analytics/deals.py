@@ -6,7 +6,7 @@ from __future__ import annotations
 import pandas as pd
 import numpy as np
 
-from app.analytics.common import safe_divide, calc_margin, fillna_numeric
+from app.analytics.common import safe_divide, calc_margin, fillna_numeric, calc_discount_rate_series
 
 
 def extract_deals(deals_str: str) -> list[str]:
@@ -84,7 +84,7 @@ def deal_summary(df: pd.DataFrame, top_n: int | None = None, _expanded: pd.DataF
     ).reset_index()
 
     agg["margin"] = ((agg["revenue"] - agg["cost"]) / agg["revenue"].replace(0, np.nan) * 100).round(1)
-    agg["avg_discount"] = (agg["discounts"] / agg["pre_discount_revenue"].replace(0, np.nan) * 100).round(1)
+    agg["avg_discount"] = calc_discount_rate_series(agg["discounts"], agg["revenue"])
     agg = agg.sort_values("times_used", ascending=False)
 
     if top_n:
@@ -105,7 +105,7 @@ def deal_type_summary(regular_df: pd.DataFrame) -> list[dict]:
         net_profit=("net_profit", "sum"),
     ).reset_index()
 
-    agg["discount_rate"] = (agg["discounts"] / agg["full_price_revenue"].replace(0, np.nan) * 100).round(1)
+    agg["discount_rate"] = calc_discount_rate_series(agg["discounts"], agg["actual_revenue"])
     agg["margin"] = ((agg["actual_revenue"] - agg["cost"]) / agg["actual_revenue"].replace(0, np.nan) * 100).round(1)
     agg = agg.sort_values("actual_revenue", ascending=False)
 

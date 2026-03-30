@@ -3436,13 +3436,19 @@ function dashboard() {
         }
         try {
           if (typeof Chart === 'undefined') {
-            el.parentElement.innerHTML = '<div style="padding:40px;text-align:center;color:#F43F5E;font-size:13px">Chart.js failed to load</div>';
+            const d = document.createElement('div');
+            d.style.cssText = 'padding:40px;text-align:center;color:#F43F5E;font-size:13px';
+            d.textContent = 'Chart.js failed to load';
+            el.parentElement.replaceChildren(d);
             return;
           }
           self._charts[id] = new Chart(el, config);
         } catch(e) {
           console.error('Chart render failed:', id, e);
-          el.parentElement.innerHTML = '<div style="padding:40px;text-align:center;color:#F43F5E;font-size:13px">Chart error: ' + (e.message||e) + '</div>';
+          const d = document.createElement('div');
+          d.style.cssText = 'padding:40px;text-align:center;color:#F43F5E;font-size:13px';
+          d.textContent = 'Chart error: ' + (e.message||e);
+          el.parentElement.replaceChildren(d);
         }
       }
       // Double-defer: nextTick (Alpine DOM) → rAF (browser layout) → render

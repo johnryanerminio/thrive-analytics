@@ -85,8 +85,8 @@ def _sales_mix(regular: pd.DataFrame) -> dict:
             "margin_gap_pts": 0.0,
         }
 
-    fp = regular[regular["deal_type"] == "NO DEAL"]
-    disc = regular[regular["deal_type"] != "NO DEAL"]
+    fp = regular[~regular["has_discount"]]
+    disc = regular[regular["has_discount"]]
 
     fp_rev = float(fp["actual_revenue"].sum())
     fp_profit = float(fp["net_profit"].sum())
@@ -392,8 +392,10 @@ def month_over_month(store: DataStore, period: PeriodFilter | None) -> dict:
     best = max(monthly, key=lambda m: m["revenue"]) if monthly else None
     worst = min(monthly, key=lambda m: m["revenue"]) if monthly else None
 
-    # Side-by-side YoY comparison: use the two most recent full years
-    # If selected period is single-year, fetch prior year from full dataset
+    # Side-by-side YoY comparison: use the two most recent years
+    # Only compare months that exist in the current (most recent) year
+    # so partial-year data (e.g. 2026 Q1) compares against the same
+    # months in the prior year, not the full prior year.
     years = sorted(set(m["year"] for m in monthly))
     yoy_comparison = []
     if len(years) >= 2:
@@ -414,10 +416,17 @@ def month_over_month(store: DataStore, period: PeriodFilter | None) -> dict:
     else:
         y1 = None
 
+    # Determine which months the current year actually has data for
+    y2_months = {m["month_num"] for m in monthly if m["year"] == y2} if y1 is not None else set()
+
     if y1 is not None:
         for mn in range(1, 13):
             d1 = by_ym.get((y1, mn))
             d2 = by_ym.get((y2, mn))
+            # Only include months where the current year has data,
+            # so we don't compare a partial year against a full year
+            if mn not in y2_months:
+                continue
             if not d1 and not d2:
                 continue
             row = {
@@ -618,10 +627,15 @@ def year_end_summary(store: DataStore, year: int) -> dict:
         "detail": f"{sales_mix['full_price_pct']:.1f}% full price, {sales_mix['discounted_pct']:.1f}% discounted",
     })
 
-    # YoY comparison
+    # YoY comparison — align to same months present in current year
+    # so partial-year 2026 (e.g. Jan-Mar) compares against Jan-Mar of prior year
     yoy = None
+    current_months = {int(m["month_num"]) for m in monthly}
     prev_period = PeriodFilter(PeriodType.YEAR, year=year - 1)
     prev_regular = store.get_regular(prev_period)
+    if not prev_regular.empty:
+        # Filter prior year to only the months present in current year
+        prev_regular = prev_regular[prev_regular["month"].isin(current_months)]
     if not prev_regular.empty:
         prev_rev = float(prev_regular["actual_revenue"].sum())
         prev_profit = float(prev_regular["net_profit"].sum())

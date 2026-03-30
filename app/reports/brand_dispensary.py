@@ -11,7 +11,7 @@ import pandas as pd
 
 from app.data.store import DataStore
 from app.data.schemas import PeriodFilter
-from app.analytics.common import safe_divide, sanitize_for_json, fillna_numeric
+from app.analytics.common import safe_divide, sanitize_for_json, fillna_numeric, calc_discount_rate_series
 from app.analytics.margin import brand_margin_summary, brand_category_breakdown, discount_depth_distribution
 from app.analytics.deals import deal_summary
 from app.analytics.velocity import velocity_metrics, velocity_by_category, share_of_category, monthly_trend, share_of_category_trend
@@ -143,6 +143,8 @@ def generate_json(
 def _velocity_rank(brand_name: str, regular_df: pd.DataFrame, category: str) -> int:
     """Rank this brand by units/day within its primary category."""
     cat_df = regular_df[regular_df["category_clean"] == category]
+    if cat_df.empty:
+        return 0
     days = max((cat_df["sale_date"].max() - cat_df["sale_date"].min()).days + 1, 1)
     brand_vel = cat_df.groupby("brand_clean", observed=True)["quantity"].sum() / days
     brand_vel = brand_vel.sort_values(ascending=False)
@@ -187,7 +189,7 @@ def _store_summary(brand_df: pd.DataFrame) -> list[dict]:
         discounts=("discounts", "sum"),
     ).reset_index()
     agg["margin"] = ((agg["revenue"] - agg["cost"]) / agg["revenue"].replace(0, float("nan")) * 100).round(1)
-    agg["discount_rate"] = (agg["discounts"] / (agg["revenue"] + agg["discounts"]).replace(0, float("nan")) * 100).round(1)
+    agg["discount_rate"] = calc_discount_rate_series(agg["discounts"], agg["revenue"])
     return fillna_numeric(agg.sort_values("revenue", ascending=False)).to_dict("records")
 
 

@@ -130,7 +130,7 @@ def apply_internal_cost_corrections(df: pd.DataFrame) -> pd.DataFrame:
 
     2024: Replace cost only when cost_per_item < $1/unit (was $0 or pennies).
     2025: Replace ALL costs (were inflated/inaccurate).
-    2026+: No changes — costs are accurate.
+    2026+: Unconditional — all internal brand costs corrected.
     """
     if df.empty or "year" not in df.columns:
         return df
@@ -143,7 +143,11 @@ def apply_internal_cost_corrections(df: pd.DataFrame) -> pd.DataFrame:
     for brand_upper, prices in INTERNAL_BRAND_COSTS.items():
         brand_mask = df["brand_clean"].str.upper() == brand_upper
 
-        for year_val, mode in COST_CORRECTION_YEARS.items():
+        # Iterate over all years present in the data (not just config keys)
+        # so new years (2027+) are automatically corrected via defaultdict
+        data_years = df.loc[brand_mask, "year"].unique()
+        for year_val in sorted(data_years):
+            mode = COST_CORRECTION_YEARS[year_val]
             year_mask = brand_mask & (df["year"] == year_val)
             if mode == "conditional":
                 year_mask = year_mask & (df["cost_per_item"] < 1.0)
@@ -208,6 +212,7 @@ def load_all_csvs(
     df = None
     total_loaded = 0
     file_count = 0
+    skipped_files = []
     for f in files:
         try:
             chunk = load_single_csv(f)
@@ -231,7 +236,13 @@ def load_all_csvs(
                 print(f"  [{file_count}/{len(files)}] {f.name}: +{rows:,}, dedup -{dropped:,} → {len(df):,} rows")
 
         except Exception as exc:
-            print(f"  Warning: skipping {f.name}: {exc}")
+            skipped_files.append({"file": f.name, "error": str(exc)})
+            print(f"  WARNING: skipping {f.name}: {exc}")
+
+    if skipped_files:
+        print(f"\n  ⚠ {len(skipped_files)} file(s) failed to load:")
+        for sf in skipped_files:
+            print(f"    - {sf['file']}: {sf['error']}")
 
     if df is None or df.empty:
         return pd.DataFrame()

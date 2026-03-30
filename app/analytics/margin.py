@@ -6,7 +6,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from app.analytics.common import safe_divide, calc_margin, fillna_numeric
+from app.analytics.common import safe_divide, calc_margin, calc_discount_rate, fillna_numeric
 
 
 def company_margin_totals(regular_df: pd.DataFrame) -> dict:
@@ -124,7 +124,7 @@ def brand_margin_summary(brand_df: pd.DataFrame) -> dict:
         "fp_margin": round(calc_margin(fp_revenue, fp_cost), 1),
         "disc_margin": round(calc_margin(disc_revenue, disc_cost), 1),
         "pct_full_price": round(safe_divide(fp_revenue, total_revenue) * 100, 1),
-        "avg_discount_rate": round(safe_divide(total_discounts, total_revenue + total_discounts) * 100, 1),
+        "avg_discount_rate": round(calc_discount_rate(total_discounts, total_revenue + total_discounts), 1),
         "fp_revenue": float(fp_revenue),
         "disc_revenue": float(disc_revenue),
     }

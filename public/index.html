@@ -3404,8 +3404,16 @@ function dashboard() {
 
     async loadMasterReport() {
       this.loading = true; this.error = null; this.masterData = null;
-      const mp = this.periodParams(); if (this.masterStore) mp.store = this.masterStore;
-      try { this.masterData = this._normalizeMaster(await this.api('/api/master/'+this.masterTab, mp), this.masterTab); }
+      let raw;
+        if (this.periodType === 'range' && this.startYear && this.endYear) {
+          raw = await this._loadMasterRange(this.masterTab);
+        } else if (this.periodType === 'all' && this.masterStore && this._storeSlugs[this.masterStore]) {
+          raw = await this.api('/api/master/'+this.masterTab, {store: this.masterStore});
+        } else {
+          raw = await this.api('/api/master/'+this.masterTab, this.periodParams());
+        }
+        if (this.masterStore) raw = this._filterMasterByStore(raw, this.masterStore, this.masterTab);
+        try { this.masterData = this._normalizeMaster(raw, this.masterTab); }
       catch(e) { this.error = e.message; }
       this.loading = false;
     },
@@ -3474,6 +3482,23 @@ function dashboard() {
       return valid[valid.length-1];
     },
 
+    _filterMasterByStore(d, store, tab) {
+      if (!d || !store) return d;
+      if (tab === 'margin') {
+        const sr = (d.by_store||[]).find(s => (s.name||s.store) === store);
+        if (sr) {
+          d.totals = {total_revenue:sr.total_revenue??sr.revenue??0,net_profit:sr.net_profit??sr.profit??0,total_units:sr.total_units??sr.units??0,
+            blended_margin:sr.blended_margin??sr.blended??0,full_price_margin:sr.full_price_margin??sr.fp_margin??0,
+            discounted_margin:sr.discounted_margin??sr.disc_margin??0,pct_full_price:sr.pct_full_price??sr.fp_pct??0};
+          d.by_store = [sr];
+        }
+      }
+      if (tab === 'budtenders') { d.rankings = (d.all_rankings||d.rankings||[]).filter(b => (b.store_clean||b.store) === store); }
+      if (tab === 'customers') { d.top_customers = (d.top_customers||[]).filter(c => (c.primary_store||c.store) === store); }
+      if (tab === 'rewards') { d.markouts_by_employee = (d.markouts_by_employee||[]).filter(e => (e.store_clean||e.store) === store); }
+      return d;
+    },
+
     async loadDMFiles() {
       try {
         const res = await this.api('/api/upload/files');
@@ -3500,14 +3525,20 @@ function dashboard() {
         }
         try {
           if (typeof Chart === 'undefined') {
-            el.parentElement.innerHTML = '<div style="padding:40px;text-align:center;color:#F43F5E;font-size:13px">Chart.js failed to load</div>';
+            const d = document.createElement('div');
+            d.style.cssText = 'padding:40px;text-align:center;color:#F43F5E;font-size:13px';
+            d.textContent = 'Chart.js failed to load';
+            el.parentElement.replaceChildren(d);
             return;
           }
           const existing = Chart.getChart(el); if (existing) existing.destroy();
           self._charts[id] = new Chart(el, config);
         } catch(e) {
           console.error('Chart render failed:', id, e);
-          el.parentElement.innerHTML = '<div style="padding:40px;text-align:center;color:#F43F5E;font-size:13px">Chart error: ' + (e.message||e) + '</div>';
+          const d = document.createElement('div');
+          d.style.cssText = 'padding:40px;text-align:center;color:#F43F5E;font-size:13px';
+          d.textContent = 'Chart error: ' + (e.message||e);
+          el.parentElement.replaceChildren(d);
         }
       }
       // Double-defer: nextTick (Alpine DOM) → rAF (browser layout) → render

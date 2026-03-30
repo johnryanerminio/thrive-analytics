@@ -351,11 +351,20 @@ def _generate_static_index(out: Path):
         master_store_dropdown + '\n        <div class="sm:ml-auto flex items-center gap-2">',
         "master store dropdown")
 
-    # --- 11. Pass masterStore in loadMasterReport ---
+    # --- 11. Range-aware + store-filtered loadMasterReport ---
     html = _checked_replace(html,
         "try { this.masterData = this._normalizeMaster(await this.api('/api/master/'+this.masterTab, this.periodParams()), this.masterTab); }",
-        "const mp = this.periodParams(); if (this.masterStore) mp.store = this.masterStore;\n      try { this.masterData = this._normalizeMaster(await this.api('/api/master/'+this.masterTab, mp), this.masterTab); }",
-        "masterStore in loadMasterReport")
+        """let raw;
+        if (this.periodType === 'range' && this.startYear && this.endYear) {
+          raw = await this._loadMasterRange(this.masterTab);
+        } else if (this.periodType === 'all' && this.masterStore && this._storeSlugs[this.masterStore]) {
+          raw = await this.api('/api/master/'+this.masterTab, {store: this.masterStore});
+        } else {
+          raw = await this.api('/api/master/'+this.masterTab, this.periodParams());
+        }
+        if (this.masterStore) raw = this._filterMasterByStore(raw, this.masterStore, this.masterTab);
+        try { this.masterData = this._normalizeMaster(raw, this.masterTab); }""",
+        "range-aware + store-filtered loadMasterReport")
 
     # --- 12. Remove Excel download links in master reports ---
     # Replace the download buttons container with empty div
@@ -507,17 +516,7 @@ def _generate_static_index(out: Path):
     },""",
     )
 
-    # --- 20. Range-aware loadMasterReport ---
-    html = html.replace(
-        "this.masterData = this._normalizeMaster(await this.api('/api/master/'+this.masterTab, this.periodParams()), this.masterTab);",
-        """(() => { const mp = this.periodParams(); if (this.masterStore) mp.store = this.masterStore; return mp; })();
-        if (this.periodType === 'range' && this.startYear && this.endYear && !this.masterStore) {
-          this.masterData = this._normalizeMaster(await this._loadMasterRange(this.masterTab), this.masterTab);
-        } else {
-          const mp2 = this.periodParams(); if (this.masterStore) mp2.store = this.masterStore;
-          this.masterData = this._normalizeMaster(await this.api('/api/master/'+this.masterTab, mp2), this.masterTab);
-        }""",
-    )
+    # --- 20. (Merged into patch 11) ---
 
     # --- 21. Add helper methods: _buildMonthKeys, _fetchJson, _loadMasterRange ---
     html = html.replace(
@@ -586,6 +585,23 @@ def _generate_static_index(out: Path):
       return valid[valid.length-1];
     },
 
+    _filterMasterByStore(d, store, tab) {
+      if (!d || !store) return d;
+      if (tab === 'margin') {
+        const sr = (d.by_store||[]).find(s => (s.name||s.store) === store);
+        if (sr) {
+          d.totals = {total_revenue:sr.total_revenue??sr.revenue??0,net_profit:sr.net_profit??sr.profit??0,total_units:sr.total_units??sr.units??0,
+            blended_margin:sr.blended_margin??sr.blended??0,full_price_margin:sr.full_price_margin??sr.fp_margin??0,
+            discounted_margin:sr.discounted_margin??sr.disc_margin??0,pct_full_price:sr.pct_full_price??sr.fp_pct??0};
+          d.by_store = [sr];
+        }
+      }
+      if (tab === 'budtenders') { d.rankings = (d.all_rankings||d.rankings||[]).filter(b => (b.store_clean||b.store) === store); }
+      if (tab === 'customers') { d.top_customers = (d.top_customers||[]).filter(c => (c.primary_store||c.store) === store); }
+      if (tab === 'rewards') { d.markouts_by_employee = (d.markouts_by_employee||[]).filter(e => (e.store_clean||e.store) === store); }
+      return d;
+    },
+
     async loadDMFiles()""",
     )
 
@@ -607,6 +623,7 @@ def cmd_export(args):
 
     out = Path(args.output)
     out.mkdir(parents=True, exist_ok=True)
+    export_failures = []
 
     # Load data
     store = DataStore().load()
@@ -695,7 +712,7 @@ def cmd_export(args):
             facing = brand_face_json(store, brand, None)
             _write_json(out / f"data/brands/{slug}/facing.json", facing)
         except Exception as e:
-            pass  # facing reports may fail for small brands
+            export_failures.append(f"{brand} facing: {e}")
     if skipped:
         print(f"    ({skipped} brands skipped — fewer than 5 transactions)")
 
@@ -716,12 +733,12 @@ def cmd_export(args):
                 _write_json(out / f"data/brands/{slug}/report-{y}.json", report)
                 year_written += 1
             except Exception as e:
-                pass
+                export_failures.append(f"{brand} dispensary {y}: {e}")
             try:
                 facing = brand_face_json(store, brand, year_pf)
                 _write_json(out / f"data/brands/{slug}/facing-{y}.json", facing)
-            except Exception:
-                pass
+            except Exception as e:
+                export_failures.append(f"{brand} facing {y}: {e}")
         print(f"    {y}: done")
     print(f"    {year_written} year-files written, {year_skipped} skipped")
 
@@ -745,7 +762,7 @@ def cmd_export(args):
                 data = mod.generate_json(store, pf)
                 _write_json(out / f"data/master/{tab}/{pk}.json", data)
             except Exception as e:
-                pass
+                export_failures.append(f"master/{tab}/{pk}: {e}")
         print(f"    {tab}: {len(year_months)} month files")
 
     # --- Master reports (all-time + per-store) ---
@@ -797,6 +814,11 @@ def cmd_export(args):
     _generate_static_index(out / "index.html")
 
     # Summary
+    if export_failures:
+        print(f"\n  ⚠ {len(export_failures)} report(s) failed to generate:")
+        for fail in export_failures:
+            print(f"    - {fail}")
+
     file_count = sum(1 for _ in out.rglob("*.json"))
     total_size = sum(f.stat().st_size for f in out.rglob("*") if f.is_file())
     print(f"\n  Done! {file_count} JSON files, {total_size / 1024 / 1024:.1f} MB total")

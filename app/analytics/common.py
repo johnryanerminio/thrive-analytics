@@ -21,8 +21,24 @@ def calc_margin(revenue: float, cost: float) -> float:
 
 
 def calc_discount_rate(discounts: float, pre_discount_revenue: float) -> float:
-    """Discount rate: discounts / pre_discount_revenue * 100."""
+    """Discount rate: discounts / pre_discount_revenue * 100.
+
+    Canonical formula: discounts / (actual_revenue + discounts).
+    Since pre_discount_revenue == actual_revenue + discounts by definition,
+    both forms are equivalent.  All callers should use this helper.
+    """
     return safe_divide(discounts, pre_discount_revenue) * 100
+
+
+def calc_discount_rate_series(
+    discounts: pd.Series, revenue: pd.Series,
+) -> pd.Series:
+    """Vectorised discount rate for DataFrames: discounts / (revenue + discounts) * 100.
+
+    Returns a rounded Series with NaN filled to 0.
+    """
+    denom = (revenue + discounts).replace(0, np.nan)
+    return (discounts / denom * 100).round(1).fillna(0)
 
 
 def pct_of_total(part: float, total: float) -> float:

@@ -14,7 +14,7 @@ import pandas as pd
 
 from app.data.store import DataStore
 from app.data.schemas import PeriodFilter
-from app.analytics.common import safe_divide, calc_margin, sanitize_for_json, fillna_numeric
+from app.analytics.common import safe_divide, calc_margin, sanitize_for_json, fillna_numeric, calc_discount_rate_series
 from app.analytics.margin import brand_margin_summary
 from app.analytics.velocity import velocity_by_category, share_of_category, monthly_trend, share_of_category_trend
 from app.analytics.deals import expand_deals, promo_lift
@@ -275,7 +275,7 @@ def _promotional_effectiveness(brand_df: pd.DataFrame) -> dict:
         cost=("cost", "sum"),
     ).reset_index()
     deal_agg["margin"] = ((deal_agg["revenue"] - deal_agg["cost"]) / deal_agg["revenue"].replace(0, np.nan) * 100).round(1)
-    deal_agg["discount_depth"] = (deal_agg["discounts"] / (deal_agg["revenue"] + deal_agg["discounts"]).replace(0, np.nan) * 100).round(1)
+    deal_agg["discount_depth"] = calc_discount_rate_series(deal_agg["discounts"], deal_agg["revenue"])
     deal_agg = deal_agg.sort_values("uses", ascending=False)
 
     return {

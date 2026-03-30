@@ -117,11 +117,13 @@ INTERNAL_BRAND_COSTS = {
 
 # "conditional" = only replace when cost_per_item < $1
 # "unconditional" = replace ALL costs regardless of current value
-COST_CORRECTION_YEARS = {
+# Uses defaultdict so new years are automatically corrected
+from collections import defaultdict
+COST_CORRECTION_YEARS = defaultdict(lambda: "unconditional", {
     2024: "unconditional",
     2025: "unconditional",
     2026: "unconditional",
-}
+})
 
 PRE_ROLL_CATEGORIES = {"PRE ROLL", "PRE ROLL PACK"}
 CART_CATEGORIES = {"CARTRIDGE"}

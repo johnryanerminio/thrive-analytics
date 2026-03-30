@@ -1239,8 +1239,8 @@
           <!-- Period label -->
           <div class="mb-6 text-sm text-[#94a3b8] font-medium" x-text="storeData.period_label"></div>
 
-          <!-- 4 KPI Cards -->
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <!-- 5 KPI Cards -->
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             <!-- Total Stores -->
             <div class="kpi-card">
               <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Stores</div>
@@ -1250,6 +1250,14 @@
             <div class="kpi-card">
               <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Company Avg Margin</div>
               <div class="text-2xl font-bold text-[#f8fafc] font-mono" x-text="fmtPct(storeData.company_avg_margin)"></div>
+            </div>
+            <!-- Same-Store Sales Growth -->
+            <div class="kpi-card">
+              <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Same-Store Growth</div>
+              <div class="text-2xl font-bold font-mono"
+                   :class="storeData.company_sssg == null ? 'text-[#64748b]' : storeData.company_sssg >= 0 ? 'text-success' : 'text-destructive'"
+                   x-text="storeData.company_sssg != null ? fmtPctSigned(storeData.company_sssg) : '-'"></div>
+              <div class="text-[10px] text-[#64748b]">vs prior year same period</div>
             </div>
             <!-- Top Performer -->
             <div class="kpi-card">
@@ -1341,6 +1349,7 @@
                   <th class="text-right">Profit</th>
                   <th class="text-right">Margin</th>
                   <th class="text-right">Units</th>
+                  <th class="text-right">SSSG</th>
                   <th class="text-right">FP %</th>
                   <th>Top Brand</th>
                   <th>Top Category</th>
@@ -1363,6 +1372,10 @@
                       </span>
                     </td>
                     <td class="text-right" x-text="fmtN(s.units)"></td>
+                    <td class="text-right">
+                      <span :class="s.sssg == null ? 'text-[#64748b]' : s.sssg >= 0 ? 'text-success' : 'text-destructive'"
+                            x-text="s.sssg != null ? fmtPctSigned(s.sssg) : '-'"></span>
+                    </td>
                     <td class="text-right" x-text="fmtPct(s.full_price_pct)"></td>
                     <td class="text-xs truncate max-w-[120px]" x-text="s.top_brand || '-'"></td>
                     <td class="text-xs truncate max-w-[120px]" x-text="s.top_category || '-'"></td>
@@ -1377,6 +1390,9 @@
                   <td class="text-right font-semibold"
                       x-text="fmtPct(storeData.stores?.reduce((a,s) => a + (s.revenue||0), 0) ? storeData.stores?.reduce((a,s) => a + (s.profit||0), 0) / storeData.stores?.reduce((a,s) => a + (s.revenue||0), 0) * 100 : 0)"></td>
                   <td class="text-right font-semibold" x-text="fmtN(storeData.stores?.reduce((a,s) => a + (s.units||0), 0))"></td>
+                  <td class="text-right font-semibold"
+                      :class="storeData.company_sssg == null ? '' : storeData.company_sssg >= 0 ? 'text-success' : 'text-destructive'"
+                      x-text="storeData.company_sssg != null ? fmtPctSigned(storeData.company_sssg) : '-'"></td>
                   <td class="text-right font-semibold"
                       x-text="fmtPct(storeData.stores?.reduce((a,s) => a + (s.full_price_pct||0), 0) / (storeData.stores?.length || 1))"></td>
                   <td></td>
@@ -2297,7 +2313,7 @@
       <!-- Sub-tabs + Download -->
       <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
         <div class="flex rounded-lg border border-muted overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0">
-          <template x-for="tab in ['margin','deals','budtenders','customers','rewards']" :key="tab">
+          <template x-for="tab in ['margin','deals','budtenders','customers','rewards','retention','forecast','products','waterfall','basket','heatmap']" :key="tab">
             <button class="px-4 py-2.5 md:py-1.5 text-sm md:text-xs font-medium capitalize transition-colors whitespace-nowrap"
                     :class="masterTab === tab ? 'bg-gold text-[#0B0F14]' : 'bg-[#151C26] text-[#94a3b8] hover:bg-[#1F2937]'"
                     @click="masterTab = tab; loadMasterReport()"
@@ -2803,6 +2819,628 @@
                   </template>
                 </tbody>
               </table>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- ── RETENTION TAB ── -->
+      <div x-show="masterTab === 'retention'" x-cloak>
+        <template x-if="masterData && masterTab === 'retention'">
+          <div>
+            <!-- KPIs -->
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Total Customers</div>
+                <div class="text-2xl font-bold text-[#f8fafc] font-mono" x-text="fmtN(masterData.kpis?.total_unique_customers)"></div>
+              </div>
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Avg Lifetime Value</div>
+                <div class="text-2xl font-bold text-success font-mono" x-text="fmtCurrency(masterData.kpis?.avg_ltv)"></div>
+              </div>
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Latest Churn Rate</div>
+                <div class="text-2xl font-bold font-mono"
+                     :class="(masterData.kpis?.latest_churn_rate ?? 0) > 50 ? 'text-destructive' : 'text-[#f8fafc]'"
+                     x-text="masterData.kpis?.latest_churn_rate != null ? fmtPct(masterData.kpis.latest_churn_rate) : '-'"></div>
+                <div class="text-[10px] text-[#64748b]">90-day inactive</div>
+              </div>
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Returning %</div>
+                <div class="text-2xl font-bold text-primary font-mono" x-text="fmtPct(masterData.kpis?.latest_returning_pct)"></div>
+                <div class="text-[10px] text-[#64748b]">latest month</div>
+              </div>
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Revenue at Risk</div>
+                <div class="text-2xl font-bold text-destructive font-mono" x-text="fmtCurrency(masterData.kpis?.at_risk_monthly_revenue)"></div>
+                <div class="text-[10px] text-[#64748b]" x-text="fmtN(masterData.kpis?.at_risk_customers) + ' declining customers'"></div>
+              </div>
+            </div>
+
+            <!-- New vs Returning Customers Table -->
+            <div class="chart-container mb-6 overflow-x-auto">
+              <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Monthly New vs Returning Customers</h3>
+              <table class="data-table sticky-col">
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th class="text-right">Total</th>
+                    <th class="text-right">New</th>
+                    <th class="text-right">Returning</th>
+                    <th class="text-right">Returning %</th>
+                    <th class="text-right">New Revenue</th>
+                    <th class="text-right">Returning Revenue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="(m, idx) in (masterData.monthly || []).slice(-12)" :key="idx">
+                    <tr>
+                      <td class="font-medium" x-text="m.label"></td>
+                      <td class="text-right" x-text="fmtN(m.total_customers)"></td>
+                      <td class="text-right text-primary" x-text="fmtN(m.new_customers)"></td>
+                      <td class="text-right text-success" x-text="fmtN(m.returning_customers)"></td>
+                      <td class="text-right">
+                        <span :class="m.returning_pct >= 50 ? 'text-success' : 'text-destructive'"
+                              x-text="fmtPct(m.returning_pct)"></span>
+                      </td>
+                      <td class="text-right" x-text="fmtCurrency(m.new_revenue)"></td>
+                      <td class="text-right" x-text="fmtCurrency(m.returning_revenue)"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Churn Trend Table -->
+            <div class="chart-container mb-6 overflow-x-auto">
+              <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Churn & Retention Trend</h3>
+              <table class="data-table sticky-col">
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th class="text-right">Active (Prior 3m)</th>
+                    <th class="text-right">Active (Current)</th>
+                    <th class="text-right">Churned</th>
+                    <th class="text-right">Churn Rate</th>
+                    <th class="text-right">Retention Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="(c, idx) in (masterData.churn || []).slice(-12)" :key="idx">
+                    <tr>
+                      <td class="font-medium" x-text="c.label"></td>
+                      <td class="text-right" x-text="fmtN(c.active_prior_3m)"></td>
+                      <td class="text-right" x-text="fmtN(c.active_current)"></td>
+                      <td class="text-right text-destructive" x-text="fmtN(c.churned)"></td>
+                      <td class="text-right">
+                        <span :class="c.churn_rate > 50 ? 'text-destructive' : c.churn_rate > 30 ? 'text-warning' : 'text-success'"
+                              x-text="fmtPct(c.churn_rate)"></span>
+                      </td>
+                      <td class="text-right">
+                        <span :class="c.retention_rate >= 70 ? 'text-success' : c.retention_rate >= 50 ? 'text-warning' : 'text-destructive'"
+                              x-text="fmtPct(c.retention_rate)"></span>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Cohort Retention Summary -->
+            <div class="chart-container mb-6 overflow-x-auto">
+              <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Cohort Retention (% still active)</h3>
+              <table class="data-table sticky-col">
+                <thead>
+                  <tr>
+                    <th>Cohort</th>
+                    <th class="text-right">Size</th>
+                    <th class="text-right">Month 1</th>
+                    <th class="text-right">Month 3</th>
+                    <th class="text-right">Month 6</th>
+                    <th class="text-right">Month 12</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="(c, idx) in (masterData.cohort_summary || [])" :key="idx">
+                    <tr>
+                      <td class="font-medium" x-text="c.cohort"></td>
+                      <td class="text-right" x-text="fmtN(c.size)"></td>
+                      <td class="text-right">
+                        <span :class="(c.m1??0) >= 40 ? 'text-success' : (c.m1??0) >= 20 ? 'text-warning' : 'text-destructive'"
+                              x-text="c.m1 != null ? fmtPct(c.m1) : '-'"></span>
+                      </td>
+                      <td class="text-right">
+                        <span :class="(c.m3??0) >= 25 ? 'text-success' : (c.m3??0) >= 10 ? 'text-warning' : 'text-destructive'"
+                              x-text="c.m3 != null ? fmtPct(c.m3) : '-'"></span>
+                      </td>
+                      <td class="text-right">
+                        <span :class="(c.m6??0) >= 15 ? 'text-success' : (c.m6??0) >= 5 ? 'text-warning' : 'text-destructive'"
+                              x-text="c.m6 != null ? fmtPct(c.m6) : '-'"></span>
+                      </td>
+                      <td class="text-right">
+                        <span :class="(c.m12??0) >= 10 ? 'text-success' : (c.m12??0) >= 3 ? 'text-warning' : 'text-destructive'"
+                              x-text="c.m12 != null ? fmtPct(c.m12) : '-'"></span>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Customer Lifetime Value by Tenure -->
+            <div class="chart-container mb-6 overflow-x-auto">
+              <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Customer Lifetime Value by Tenure</h3>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div class="kpi-card">
+                  <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Avg LTV</div>
+                  <div class="text-xl font-bold text-success font-mono" x-text="fmtCurrency(masterData.kpis?.avg_ltv)"></div>
+                </div>
+                <div class="kpi-card">
+                  <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Median LTV</div>
+                  <div class="text-xl font-bold text-[#f8fafc] font-mono" x-text="fmtCurrency(masterData.kpis?.median_ltv)"></div>
+                </div>
+                <div class="kpi-card">
+                  <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Avg Tenure</div>
+                  <div class="text-xl font-bold text-[#f8fafc] font-mono" x-text="Math.round(masterData.kpis?.avg_tenure_days / 30) + ' months'"></div>
+                </div>
+                <div class="kpi-card">
+                  <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Avg Monthly Value</div>
+                  <div class="text-xl font-bold text-primary font-mono" x-text="fmtCurrency(masterData.kpis?.avg_monthly_value)"></div>
+                </div>
+              </div>
+              <table class="data-table sticky-col">
+                <thead>
+                  <tr>
+                    <th>Tenure</th>
+                    <th class="text-right">Customers</th>
+                    <th class="text-right">% of Total</th>
+                    <th class="text-right">Avg Revenue</th>
+                    <th class="text-right">Total Revenue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="(b, idx) in (masterData.ltv_buckets || [])" :key="idx">
+                    <tr>
+                      <td class="font-medium" x-text="b.bucket"></td>
+                      <td class="text-right" x-text="fmtN(b.customers)"></td>
+                      <td class="text-right" x-text="fmtPct(b.pct_of_total)"></td>
+                      <td class="text-right" x-text="fmtCurrency(b.avg_revenue)"></td>
+                      <td class="text-right" x-text="fmtCurrency(b.total_revenue)"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- ── FORECAST TAB ── -->
+      <div x-show="masterTab === 'forecast'" x-cloak>
+        <template x-if="masterData && masterTab === 'forecast'">
+          <div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Growth Rate</div>
+                <div class="text-2xl font-bold font-mono"
+                     :class="(masterData.growth_rate??0) >= 0 ? 'text-success' : 'text-destructive'"
+                     x-text="masterData.growth_rate != null ? fmtPctSigned(masterData.growth_rate) : '-'"></div>
+                <div class="text-[10px] text-[#64748b]">3-month vs prior 3-month</div>
+              </div>
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Trajectory</div>
+                <div class="text-2xl font-bold font-mono"
+                     :class="masterData.trajectory === 'accelerating' ? 'text-success' : masterData.trajectory === 'decelerating' ? 'text-destructive' : 'text-[#f8fafc]'"
+                     x-text="(masterData.trajectory || '-').charAt(0).toUpperCase() + (masterData.trajectory || '').slice(1)"></div>
+              </div>
+              <div class="kpi-card" x-show="masterData.forecast?.length">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Next Month Proj</div>
+                <div class="text-2xl font-bold text-primary font-mono" x-text="fmtCurrency(masterData.forecast?.[0]?.projected_revenue)"></div>
+              </div>
+              <div class="kpi-card" x-show="masterData.forecast?.length >= 3">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">3-Month Proj</div>
+                <div class="text-2xl font-bold text-primary font-mono" x-text="fmtCurrency(masterData.forecast?.reduce((a,f)=>a+(f.projected_revenue||0),0))"></div>
+              </div>
+            </div>
+            <!-- Historical + Forecast Table -->
+            <div class="chart-container mb-6 overflow-x-auto">
+              <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Revenue Trend & Forecast</h3>
+              <table class="data-table sticky-col">
+                <thead><tr><th>Month</th><th class="text-right">Revenue</th><th class="text-right">Profit</th><th class="text-right">3m Avg Revenue</th></tr></thead>
+                <tbody>
+                  <template x-for="(h, idx) in (masterData.historical || []).slice(-12)" :key="'h'+idx">
+                    <tr>
+                      <td class="font-medium" x-text="h.label"></td>
+                      <td class="text-right" x-text="fmtCurrency(h.revenue)"></td>
+                      <td class="text-right" x-text="fmtCurrency(h.profit)"></td>
+                      <td class="text-right text-[#64748b]" x-text="fmtCurrency(h.trailing_3m_revenue)"></td>
+                    </tr>
+                  </template>
+                  <template x-for="(f, idx) in (masterData.forecast || [])" :key="'f'+idx">
+                    <tr class="bg-primary/5">
+                      <td class="font-medium text-primary" x-text="f.label + ' (proj)'"></td>
+                      <td class="text-right text-primary" x-text="fmtCurrency(f.projected_revenue)"></td>
+                      <td class="text-right text-primary" x-text="fmtCurrency(f.projected_profit)"></td>
+                      <td class="text-right text-[#64748b]">-</td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <!-- Seasonal Pattern -->
+            <div class="chart-container mb-6 overflow-x-auto" x-show="masterData.seasonal_pattern?.length">
+              <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Seasonal Pattern</h3>
+              <div class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-2">
+                <template x-for="s in (masterData.seasonal_pattern || [])" :key="s.month_name">
+                  <div class="text-center p-2 rounded" :class="s.factor >= 1.05 ? 'bg-success/10' : s.factor <= 0.95 ? 'bg-destructive/10' : 'bg-[#151C26]'">
+                    <div class="text-[10px] text-[#64748b]" x-text="s.month_name.slice(0,3)"></div>
+                    <div class="text-sm font-bold font-mono" :class="s.factor >= 1.05 ? 'text-success' : s.factor <= 0.95 ? 'text-destructive' : 'text-[#f8fafc]'"
+                         x-text="(s.factor * 100).toFixed(0) + '%'"></div>
+                  </div>
+                </template>
+              </div>
+              <div class="text-[10px] text-[#475569] mt-2">100% = average month. Above 100% = seasonally strong.</div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- ── PRODUCTS TAB ── -->
+      <div x-show="masterTab === 'products'" x-cloak>
+        <template x-if="masterData && masterTab === 'products'">
+          <div>
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Total Products</div>
+                <div class="text-2xl font-bold text-[#f8fafc] font-mono" x-text="fmtN(masterData.kpis?.total_products)"></div>
+              </div>
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">A-Class Products</div>
+                <div class="text-2xl font-bold text-success font-mono" x-text="fmtN(masterData.kpis?.a_count)"></div>
+                <div class="text-[10px] text-[#64748b]" x-text="fmtPct(masterData.kpis?.a_revenue_pct) + ' of revenue'"></div>
+              </div>
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Dead Stock</div>
+                <div class="text-2xl font-bold text-destructive font-mono" x-text="fmtN(masterData.kpis?.dead_stock_count)"></div>
+                <div class="text-[10px] text-[#64748b]">60+ days no sales</div>
+              </div>
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Accelerating</div>
+                <div class="text-2xl font-bold text-success font-mono" x-text="fmtN(masterData.kpis?.accelerating_count)"></div>
+              </div>
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Decelerating</div>
+                <div class="text-2xl font-bold text-destructive font-mono" x-text="fmtN(masterData.kpis?.decelerating_count)"></div>
+              </div>
+            </div>
+            <!-- ABC Products -->
+            <div class="chart-container mb-6 overflow-x-auto">
+              <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Product ABC Classification (Top 100)</h3>
+              <table class="data-table sticky-col">
+                <thead><tr><th>Class</th><th>Product</th><th>Brand</th><th>Category</th><th class="text-right">Revenue</th><th class="text-right">Profit</th><th class="text-right">Margin</th><th class="text-right">Units</th></tr></thead>
+                <tbody>
+                  <template x-for="(p, idx) in (masterData.abc_products || []).slice(0, 50)" :key="idx">
+                    <tr>
+                      <td><span class="px-1.5 py-0.5 rounded text-xs font-bold"
+                                :class="p.abc_class === 'A' ? 'bg-success/20 text-success' : p.abc_class === 'B' ? 'bg-primary/20 text-primary' : p.abc_class === 'C' ? 'bg-warning/20 text-warning' : 'bg-destructive/20 text-destructive'"
+                                x-text="p.abc_class"></span></td>
+                      <td class="text-xs max-w-[200px] truncate" x-text="p.product"></td>
+                      <td class="text-xs" x-text="p.brand"></td>
+                      <td class="text-xs" x-text="p.category"></td>
+                      <td class="text-right" x-text="fmtCurrency(p.revenue)"></td>
+                      <td class="text-right" x-text="fmtCurrency(p.profit)"></td>
+                      <td class="text-right" x-text="fmtPct(p.margin)"></td>
+                      <td class="text-right" x-text="fmtN(p.units)"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <!-- Dead Stock -->
+            <div class="chart-container mb-6 overflow-x-auto" x-show="(masterData.dead_stock||[]).length">
+              <h3 class="text-sm font-semibold text-destructive mb-4">Dead Stock (No Sales in 60+ Days)</h3>
+              <table class="data-table sticky-col">
+                <thead><tr><th>Product</th><th>Brand</th><th>Category</th><th class="text-right">Days Since Sale</th><th class="text-right">Historical Revenue</th></tr></thead>
+                <tbody>
+                  <template x-for="(d, idx) in (masterData.dead_stock || []).slice(0, 30)" :key="idx">
+                    <tr>
+                      <td class="text-xs max-w-[200px] truncate" x-text="d.product"></td>
+                      <td class="text-xs" x-text="d.brand"></td>
+                      <td class="text-xs" x-text="d.category"></td>
+                      <td class="text-right text-destructive" x-text="d.days_since_sale"></td>
+                      <td class="text-right" x-text="fmtCurrency(d.total_revenue)"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <!-- Velocity Trends -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <div class="chart-container overflow-x-auto">
+                <h3 class="text-sm font-semibold text-success mb-4">Top Accelerating Products</h3>
+                <table class="data-table sticky-col">
+                  <thead><tr><th>Product</th><th>Brand</th><th class="text-right">Change</th></tr></thead>
+                  <tbody>
+                    <template x-for="(a, idx) in (masterData.accelerating || []).slice(0, 15)" :key="idx">
+                      <tr>
+                        <td class="text-xs max-w-[150px] truncate" x-text="a.product"></td>
+                        <td class="text-xs" x-text="a.brand"></td>
+                        <td class="text-right text-success" x-text="fmtPctSigned(a.change_pct)"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+              <div class="chart-container overflow-x-auto">
+                <h3 class="text-sm font-semibold text-destructive mb-4">Top Decelerating Products</h3>
+                <table class="data-table sticky-col">
+                  <thead><tr><th>Product</th><th>Brand</th><th class="text-right">Change</th></tr></thead>
+                  <tbody>
+                    <template x-for="(d, idx) in (masterData.decelerating || []).slice(0, 15)" :key="idx">
+                      <tr>
+                        <td class="text-xs max-w-[150px] truncate" x-text="d.product"></td>
+                        <td class="text-xs" x-text="d.brand"></td>
+                        <td class="text-right text-destructive" x-text="fmtPctSigned(d.change_pct)"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- ── WATERFALL TAB ── -->
+      <div x-show="masterTab === 'waterfall'" x-cloak>
+        <template x-if="masterData && masterTab === 'waterfall'">
+          <div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Prior Margin</div>
+                <div class="text-2xl font-bold text-[#94a3b8] font-mono" x-text="fmtPct(masterData.prior_margin)"></div>
+                <div class="text-[10px] text-[#64748b]" x-text="masterData.period_labels?.prior || ''"></div>
+              </div>
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Current Margin</div>
+                <div class="text-2xl font-bold text-[#f8fafc] font-mono" x-text="fmtPct(masterData.current_margin)"></div>
+                <div class="text-[10px] text-[#64748b]" x-text="masterData.period_labels?.current || ''"></div>
+              </div>
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Total Change</div>
+                <div class="text-2xl font-bold font-mono"
+                     :class="(masterData.total_change_pts??0) >= 0 ? 'text-success' : 'text-destructive'"
+                     x-text="masterData.total_change_pts != null ? (masterData.total_change_pts >= 0 ? '+' : '') + masterData.total_change_pts.toFixed(1) + ' pts' : '-'"></div>
+              </div>
+              <div class="kpi-card" x-show="masterData.residual_pts != null">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Unexplained</div>
+                <div class="text-2xl font-bold text-[#64748b] font-mono" x-text="(masterData.residual_pts >= 0 ? '+' : '') + (masterData.residual_pts?.toFixed(1) ?? '0') + ' pts'"></div>
+              </div>
+            </div>
+            <!-- Waterfall Bars -->
+            <div class="chart-container mb-6">
+              <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Margin Change Decomposition</h3>
+              <div class="space-y-3">
+                <template x-for="(e, idx) in (masterData.effects || [])" :key="idx">
+                  <div class="flex items-center gap-3">
+                    <div class="w-28 text-xs text-[#94a3b8] text-right" x-text="e.name"></div>
+                    <div class="flex-1 h-8 bg-[#151C26] rounded relative overflow-hidden">
+                      <div class="h-full rounded transition-all"
+                           :class="e.impact_pts >= 0 ? 'bg-success/40' : 'bg-destructive/40'"
+                           :style="'width:' + Math.min(Math.abs(e.impact_pts) / Math.max(...(masterData.effects||[]).map(x=>Math.abs(x.impact_pts)), 1) * 100, 100) + '%'"></div>
+                    </div>
+                    <div class="w-20 text-right text-sm font-bold font-mono"
+                         :class="e.impact_pts >= 0 ? 'text-success' : 'text-destructive'"
+                         x-text="(e.impact_pts >= 0 ? '+' : '') + e.impact_pts.toFixed(1) + ' pts'"></div>
+                  </div>
+                </template>
+              </div>
+            </div>
+            <!-- Category Detail -->
+            <div class="chart-container mb-6 overflow-x-auto" x-show="(masterData.category_detail||[]).length">
+              <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Category-Level Margin Changes</h3>
+              <table class="data-table sticky-col">
+                <thead><tr><th>Category</th><th class="text-right">Prior Share</th><th class="text-right">Current Share</th><th class="text-right">Prior Margin</th><th class="text-right">Current Margin</th><th class="text-right">Contribution</th></tr></thead>
+                <tbody>
+                  <template x-for="(c, idx) in (masterData.category_detail || [])" :key="idx">
+                    <tr>
+                      <td class="font-medium" x-text="c.category"></td>
+                      <td class="text-right text-[#94a3b8]" x-text="fmtPct(c.prior_share)"></td>
+                      <td class="text-right" x-text="fmtPct(c.current_share)"></td>
+                      <td class="text-right text-[#94a3b8]" x-text="fmtPct(c.prior_margin)"></td>
+                      <td class="text-right" x-text="fmtPct(c.current_margin)"></td>
+                      <td class="text-right font-bold"
+                          :class="(c.contribution_pts??0) >= 0 ? 'text-success' : 'text-destructive'"
+                          x-text="(c.contribution_pts >= 0 ? '+' : '') + (c.contribution_pts?.toFixed(1) ?? '0') + ' pts'"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <div x-show="!masterData.effects" class="text-center py-12 text-[#475569] text-sm">
+              Margin waterfall requires at least two periods of data for comparison.
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- ── BASKET TAB ── -->
+      <div x-show="masterTab === 'basket'" x-cloak>
+        <template x-if="masterData && masterTab === 'basket'">
+          <div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Avg Basket Value</div>
+                <div class="text-2xl font-bold text-[#f8fafc] font-mono" x-text="fmtCurrency(masterData.kpis?.avg_basket_value)"></div>
+              </div>
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Avg Items/Basket</div>
+                <div class="text-2xl font-bold text-primary font-mono" x-text="(masterData.kpis?.avg_items_per_basket ?? 0).toFixed(1)"></div>
+              </div>
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Multi-Item Baskets</div>
+                <div class="text-2xl font-bold text-success font-mono" x-text="fmtPct(masterData.kpis?.multi_item_basket_pct)"></div>
+              </div>
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Basket Trend</div>
+                <div class="text-2xl font-bold font-mono"
+                     :class="masterData.kpis?.basket_trend === 'growing' ? 'text-success' : masterData.kpis?.basket_trend === 'shrinking' ? 'text-destructive' : 'text-[#f8fafc]'"
+                     x-text="(masterData.kpis?.basket_trend || '-').charAt(0).toUpperCase() + (masterData.kpis?.basket_trend || '').slice(1)"></div>
+              </div>
+            </div>
+            <!-- Monthly Basket Trend -->
+            <div class="chart-container mb-6 overflow-x-auto">
+              <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Monthly Basket Metrics</h3>
+              <table class="data-table sticky-col">
+                <thead><tr><th>Month</th><th class="text-right">Transactions</th><th class="text-right">Avg Basket</th><th class="text-right">Avg Items</th></tr></thead>
+                <tbody>
+                  <template x-for="(m, idx) in (masterData.monthly_trend || []).slice(-12)" :key="idx">
+                    <tr>
+                      <td class="font-medium" x-text="m.label"></td>
+                      <td class="text-right" x-text="fmtN(m.transactions)"></td>
+                      <td class="text-right" x-text="fmtCurrency(m.avg_basket)"></td>
+                      <td class="text-right" x-text="m.avg_items?.toFixed(1)"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <!-- Category Co-Purchase -->
+            <div class="chart-container mb-6 overflow-x-auto" x-show="(masterData.category_pairs||[]).length">
+              <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Category Co-Purchase (Bought Together)</h3>
+              <table class="data-table sticky-col">
+                <thead><tr><th>Category A</th><th>Category B</th><th class="text-right">Co-Purchases</th><th class="text-right">Co-Purchase Rate</th></tr></thead>
+                <tbody>
+                  <template x-for="(p, idx) in (masterData.category_pairs || []).slice(0, 20)" :key="idx">
+                    <tr>
+                      <td class="font-medium" x-text="p.category_a"></td>
+                      <td class="font-medium" x-text="p.category_b"></td>
+                      <td class="text-right" x-text="fmtN(p.co_purchase_count)"></td>
+                      <td class="text-right" x-text="fmtPct(p.co_purchase_rate)"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <!-- Product Pairs -->
+            <div class="chart-container mb-6 overflow-x-auto" x-show="(masterData.product_pairs||[]).length">
+              <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Top Product Pairs (Bought Together)</h3>
+              <table class="data-table sticky-col">
+                <thead><tr><th>Product A</th><th>Product B</th><th class="text-right">Times Together</th></tr></thead>
+                <tbody>
+                  <template x-for="(p, idx) in (masterData.product_pairs || []).slice(0, 20)" :key="idx">
+                    <tr>
+                      <td class="text-xs max-w-[200px] truncate" x-text="p.product_a"></td>
+                      <td class="text-xs max-w-[200px] truncate" x-text="p.product_b"></td>
+                      <td class="text-right" x-text="fmtN(p.co_purchase_count)"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- ── HEATMAP TAB ── -->
+      <div x-show="masterTab === 'heatmap'" x-cloak>
+        <template x-if="masterData && masterTab === 'heatmap'">
+          <div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Busiest Day</div>
+                <div class="text-2xl font-bold text-success font-mono" x-text="masterData.kpis?.busiest_day || '-'"></div>
+              </div>
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Peak Hours</div>
+                <div class="text-lg font-bold text-primary" x-text="masterData.kpis?.peak_description || '-'"></div>
+              </div>
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Quietest Day</div>
+                <div class="text-2xl font-bold text-destructive font-mono" x-text="masterData.kpis?.quietest_day || '-'"></div>
+              </div>
+              <div class="kpi-card">
+                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1">Busiest Hour</div>
+                <div class="text-2xl font-bold text-[#f8fafc] font-mono" x-text="masterData.kpis?.busiest_hour != null ? masterData.kpis.busiest_hour + ':00' : '-'"></div>
+              </div>
+            </div>
+            <!-- Day of Week Summary -->
+            <div class="chart-container mb-6 overflow-x-auto">
+              <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Revenue by Day of Week</h3>
+              <table class="data-table sticky-col">
+                <thead><tr><th>Day</th><th class="text-right">Revenue</th><th class="text-right">Transactions</th><th class="text-right">Avg Basket</th></tr></thead>
+                <tbody>
+                  <template x-for="(d, idx) in (masterData.daily_summary || [])" :key="idx">
+                    <tr>
+                      <td class="font-medium" x-text="d.day_name"></td>
+                      <td class="text-right" x-text="fmtCurrency(d.revenue)"></td>
+                      <td class="text-right" x-text="fmtN(d.transactions)"></td>
+                      <td class="text-right" x-text="fmtCurrency(d.avg_basket)"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <!-- Heatmap Grid -->
+            <div class="chart-container mb-6">
+              <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">Revenue Heatmap (Day x Hour)</h3>
+              <div class="overflow-x-auto">
+                <div class="grid gap-0.5" style="grid-template-columns: 80px repeat(24, 1fr); min-width: 800px;">
+                  <!-- Header row -->
+                  <div class="text-[9px] text-[#64748b]"></div>
+                  <template x-for="h in Array.from({length:24},(_,i)=>i)" :key="'hdr'+h">
+                    <div class="text-[9px] text-[#64748b] text-center" x-text="h"></div>
+                  </template>
+                  <!-- Data rows -->
+                  <template x-for="day in ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']" :key="day">
+                    <template x-for="(item, ci) in [day, ...Array.from({length:24},(_,h)=>{
+                      const cell = (masterData.heatmap||[]).find(c => c.day_name === day && c.hour === h);
+                      return cell ? cell.revenue : 0;
+                    })]" :key="day+ci">
+                      <div :class="ci === 0 ? 'text-[10px] text-[#94a3b8] flex items-center' : 'h-6 rounded-sm'"
+                           :style="ci > 0 ? 'background:rgba(6,182,212,' + Math.min((item / (Math.max(...(masterData.heatmap||[{revenue:1}]).map(c=>c.revenue)) || 1)) * 0.9 + 0.1, 1) + ')' : ''"
+                           :title="ci > 0 ? '$' + Math.round(item).toLocaleString() : ''"
+                           x-text="ci === 0 ? item.slice(0,3) : ''"></div>
+                    </template>
+                  </template>
+                </div>
+                <div class="flex justify-between mt-2 text-[9px] text-[#475569]">
+                  <span>Low Revenue</span>
+                  <div class="flex gap-0.5">
+                    <div class="w-4 h-3 rounded-sm" style="background:rgba(6,182,212,0.1)"></div>
+                    <div class="w-4 h-3 rounded-sm" style="background:rgba(6,182,212,0.3)"></div>
+                    <div class="w-4 h-3 rounded-sm" style="background:rgba(6,182,212,0.5)"></div>
+                    <div class="w-4 h-3 rounded-sm" style="background:rgba(6,182,212,0.7)"></div>
+                    <div class="w-4 h-3 rounded-sm" style="background:rgba(6,182,212,0.9)"></div>
+                  </div>
+                  <span>High Revenue</span>
+                </div>
+              </div>
+            </div>
+            <!-- Peak Hours -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <div class="chart-container">
+                <h3 class="text-sm font-semibold text-success mb-4">Top 5 Peak Revenue Hours</h3>
+                <div class="space-y-2">
+                  <template x-for="(p, idx) in (masterData.peak_hours?.peak_revenue || []).slice(0,5)" :key="idx">
+                    <div class="flex justify-between items-center py-1">
+                      <span class="text-sm text-[#f8fafc]" x-text="p.day_name + ' ' + p.hour + ':00'"></span>
+                      <span class="text-sm font-bold text-success font-mono" x-text="fmtCurrency(p.revenue)"></span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+              <div class="chart-container">
+                <h3 class="text-sm font-semibold text-primary mb-4">Top 5 Peak Transaction Hours</h3>
+                <div class="space-y-2">
+                  <template x-for="(p, idx) in (masterData.peak_hours?.peak_transactions || []).slice(0,5)" :key="idx">
+                    <div class="flex justify-between items-center py-1">
+                      <span class="text-sm text-[#f8fafc]" x-text="p.day_name + ' ' + p.hour + ':00'"></span>
+                      <span class="text-sm font-bold text-primary font-mono" x-text="fmtN(p.transactions)"></span>
+                    </div>
+                  </template>
+                </div>
+              </div>
             </div>
           </div>
         </template>

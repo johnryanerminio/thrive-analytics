@@ -512,7 +512,8 @@ def month_over_month(store: DataStore, period: PeriodFilter | None) -> dict:
 # ---------------------------------------------------------------------------
 
 def store_performance(store: DataStore, period: PeriodFilter | None) -> dict:
-    """Store-level performance rankings."""
+    """Store-level performance rankings with Same-Store Sales Growth."""
+    from app.data.schemas import PeriodType
     regular = store.get_regular(period)
     label = period.label if period else "All Time"
 
@@ -532,6 +533,24 @@ def store_performance(store: DataStore, period: PeriodFilter | None) -> dict:
     ).reset_index().sort_values("revenue", ascending=False)
 
     avg_margin = safe_divide(float(regular["net_profit"].sum()), total_rev) * 100
+
+    # Same-Store Sales Growth: compare each store's revenue to same months last year
+    current_months = set(zip(regular["year"].astype(int), regular["month"].astype(int)))
+    prior_months = {(y - 1, m) for y, m in current_months}
+    # Build prior period filter for the same months one year ago
+    prior_regular = pd.DataFrame()
+    if prior_months:
+        all_data = store.get_regular(PeriodFilter(period_type=PeriodType.ALL))
+        if not all_data.empty:
+            ym_pairs = all_data["year"].astype(int) * 100 + all_data["month"].astype(int)
+            prior_ym_set = {y * 100 + m for y, m in prior_months}
+            prior_regular = all_data[ym_pairs.isin(prior_ym_set)]
+
+    prior_store_rev = {}
+    if not prior_regular.empty:
+        pr_agg = prior_regular.groupby("store_clean", observed=True)["actual_revenue"].sum()
+        prior_store_rev = pr_agg.to_dict()
+    prior_total = sum(prior_store_rev.values()) if prior_store_rev else 0
 
     stores_list = []
     for rank, (_, r) in enumerate(store_agg.iterrows(), 1):
@@ -554,6 +573,10 @@ def store_performance(store: DataStore, period: PeriodFilter | None) -> dict:
         top_brand = store_data.groupby("brand_clean", observed=True)["actual_revenue"].sum().idxmax() if not store_data.empty else ""
         top_cat = store_data.groupby("category_clean", observed=True)["actual_revenue"].sum().idxmax() if not store_data.empty else ""
 
+        # SSSG: same-store sales growth vs prior year same months
+        prior_rev = prior_store_rev.get(r["store_clean"])
+        sssg = pct_change(rev, prior_rev) if prior_rev else None
+
         stores_list.append({
             "name": r["store_clean"],
             "rank": rank,
@@ -568,17 +591,23 @@ def store_performance(store: DataStore, period: PeriodFilter | None) -> dict:
             "unique_customers": int(r["customers"]),
             "top_brand": top_brand,
             "top_category": top_cat,
+            "sssg": round(sssg, 1) if sssg is not None else None,
+            "prior_revenue": prior_rev,
         })
 
     top_perf = stores_list[0]["name"] if stores_list else ""
     bottom_margins = sorted(stores_list, key=lambda s: s["margin"])
     bottom_perf = bottom_margins[0]["name"] if bottom_margins else ""
 
+    # Company-wide SSSG
+    company_sssg = round(pct_change(total_rev, prior_total), 1) if prior_total > 0 else None
+
     return sanitize_for_json({
         "period_label": label,
         "date_range": store.date_range(period),
         "stores": stores_list,
         "company_avg_margin": round(avg_margin, 1),
+        "company_sssg": company_sssg,
         "top_performer": top_perf,
         "bottom_performer": bottom_perf,
     })

@@ -760,6 +760,12 @@ def cmd_export(args):
         "budtenders": "app.reports.budtender_report",
         "customers": "app.reports.customer_report",
         "rewards": "app.reports.rewards_report",
+        "retention": "app.reports.retention_report",
+        "forecast": "app.reports.forecast_report",
+        "products": "app.reports.product_intel_report",
+        "waterfall": "app.reports.waterfall_report",
+        "basket": "app.reports.basket_report",
+        "heatmap": "app.reports.heatmap_report",
     }
     for tab, mod_path in master_modules.items():
         mod = importlib.import_module(mod_path)
@@ -782,6 +788,12 @@ def cmd_export(args):
         "budtenders": "app.reports.budtender_report",
         "customers": "app.reports.customer_report",
         "rewards": "app.reports.rewards_report",
+        "retention": "app.reports.retention_report",
+        "forecast": "app.reports.forecast_report",
+        "products": "app.reports.product_intel_report",
+        "waterfall": "app.reports.waterfall_report",
+        "basket": "app.reports.basket_report",
+        "heatmap": "app.reports.heatmap_report",
     }
     store_names = store.stores()
     store_slugs = {s: _brand_slug(s) for s in store_names}

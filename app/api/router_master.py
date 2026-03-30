@@ -15,7 +15,11 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from app.data.store import DataStore
 from app.data.schemas import PeriodFilter
 from app.api.dependencies import get_store, parse_period
-from app.reports import margin_report, deal_report, budtender_report, customer_report, rewards_report
+from app.reports import (
+    margin_report, deal_report, budtender_report, customer_report,
+    rewards_report, retention_report, forecast_report,
+    product_intel_report, waterfall_report, basket_report, heatmap_report,
+)
 from app.config import REPORTS_FOLDER
 
 router = APIRouter(prefix="/api/master", tags=["master"])
@@ -146,6 +150,66 @@ def rewards_excel(
     path = rewards_report.generate_excel(store, _output_path("Rewards_Markout_Report.xlsx"), period)
     return FileResponse(path=str(path), filename=path.name,
                         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+# ── Retention ─────────────────────────────────────────────────────
+
+@router.get("/retention")
+def retention_json(
+    store: DataStore = Depends(get_store),
+    period: PeriodFilter | None = Depends(parse_period),
+):
+    return _safe_json(retention_report.generate_json(store, period))
+
+
+# ── Forecast ──────────────────────────────────────────────────────
+
+@router.get("/forecast")
+def forecast_json(
+    store: DataStore = Depends(get_store),
+    period: PeriodFilter | None = Depends(parse_period),
+):
+    return _safe_json(forecast_report.generate_json(store, period))
+
+
+# ── Product Intelligence ──────────────────────────────────────────
+
+@router.get("/products")
+def products_json(
+    store: DataStore = Depends(get_store),
+    period: PeriodFilter | None = Depends(parse_period),
+):
+    return _safe_json(product_intel_report.generate_json(store, period))
+
+
+# ── Margin Waterfall ──────────────────────────────────────────────
+
+@router.get("/waterfall")
+def waterfall_json(
+    store: DataStore = Depends(get_store),
+    period: PeriodFilter | None = Depends(parse_period),
+):
+    return _safe_json(waterfall_report.generate_json(store, period))
+
+
+# ── Basket Analysis ───────────────────────────────────────────────
+
+@router.get("/basket")
+def basket_json(
+    store: DataStore = Depends(get_store),
+    period: PeriodFilter | None = Depends(parse_period),
+):
+    return _safe_json(basket_report.generate_json(store, period))
+
+
+# ── Traffic Heatmap ──────────────────────────────────────────────
+
+@router.get("/heatmap")
+def heatmap_json(
+    store: DataStore = Depends(get_store),
+    period: PeriodFilter | None = Depends(parse_period),
+):
+    return _safe_json(heatmap_report.generate_json(store, period))
 
 
 # ── Suite ZIP ──────────────────────────────────────────────────────

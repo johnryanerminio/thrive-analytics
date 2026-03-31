@@ -1,0 +1,23 @@
+# Data files (loaded at runtime from THRIVE_DATA_DIR, not baked into image)
+inbox/
+archive/
+reports/
+brand_reports/
+uploads/
+shares/
+
+# Static site (deployed separately on Vercel)
+public/
+
+# Development artifacts
+__pycache__/
+*.pyc
+.git/
+.github/
+*.md
+.claude/
+
+# Legacy files
+brand_report.py
+thrive_analytics_master.py
+server.py

@@ -4218,6 +4218,13 @@ function dashboard() {
         valid.flatMap(d=>d.top_deals||[]).forEach(d=>{const k=d.deal_name||d.name;if(!tdMap[k])tdMap[k]={...d,revenue:0,count:0,profit:0};tdMap[k].revenue+=(d.actual_revenue??d.revenue??0);tdMap[k].count+=(d.count??0);tdMap[k].profit+=(d.net_profit??d.profit??0);});
         return {date_range:this.periodLabel,deal_types:dealTypes,top_deals:Object.values(tdMap).sort((a,b)=>(b.revenue||0)-(a.revenue||0)).slice(0,30)};
       }
+      // Analytical tabs (retention, forecast, products, waterfall, basket, heatmap)
+      // need full historical context — fall back to all-time file for ranges
+      const analyticalTabs = ['retention','forecast','products','waterfall','basket','heatmap'];
+      if (analyticalTabs.includes(tab)) {
+        const fb = await this._fetchJson('/data/master/' + tab + '.json');
+        if (fb) return fb;
+      }
       return valid[valid.length-1];
     },
 

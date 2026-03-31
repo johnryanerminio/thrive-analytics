@@ -3,7 +3,17 @@
   "buildCommand": "",
   "installCommand": "",
   "outputDirectory": "public",
+  "headers": [
+    {
+      "source": "/data/(.*)",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json" },
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
+    }
+  ],
   "rewrites": [
+    { "source": "/data/(.*)", "destination": "/data/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

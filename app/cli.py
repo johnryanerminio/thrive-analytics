@@ -229,9 +229,15 @@ def _generate_static_index(out: Path):
       for (const [k, v] of Object.entries(params)) {
         if (v !== null && v !== undefined && v !== '') url.searchParams.set(k, v);
       }
-      const r = await fetch(url);
-      if (!r.ok) throw new Error(await r.text().catch(() => r.statusText));
-      return r.json();
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+      try {
+        const r = await fetch(url, { signal: controller.signal });
+        if (!r.ok) throw new Error(await r.text().catch(() => r.statusText));
+        return r.json();
+      } finally {
+        clearTimeout(timeout);
+      }
     },"""
 
     new_api = """    async api(path, params = {}) {

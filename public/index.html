@@ -3588,19 +3588,59 @@ function dashboard() {
     },
 
     async api(path, params = {}) {
-      const url = new URL(path, location.origin);
-      for (const [k, v] of Object.entries(params)) {
-        if (v !== null && v !== undefined && v !== '') url.searchParams.set(k, v);
+      const url = this._resolvePath(path, params);
+      const r = await fetch(url);
+      const ct = r.headers.get('content-type') || '';
+      const isJson = ct.includes('application/json');
+      if (!r.ok || !isJson) {
+        if (path.includes('/brands/') && (path.endsWith('/report') || path.endsWith('/facing'))) {
+          const brand = decodeURIComponent(path.split('/')[3]);
+          const slug = this._brandSlugs[brand] || brand.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+          const suffix = path.endsWith('/report') ? 'report' : 'facing';
+          const fallback = '/data/brands/' + slug + '/' + suffix + '.json';
+          if (fallback !== url) {
+            const r2 = await fetch(fallback);
+            if (r2.ok) return r2.json();
+          }
+        }
+        throw new Error('Data not available for this selection');
       }
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000);
-      try {
-        const r = await fetch(url, { signal: controller.signal });
-        if (!r.ok) throw new Error(await r.text().catch(() => r.statusText));
-        return r.json();
-      } finally {
-        clearTimeout(timeout);
+      return r.json();
+    },
+
+    _resolvePath(path, params) {
+      let pk = 'all';
+      if (params.period_type === 'month' && params.year && params.month) {
+        pk = params.year + '-' + String(params.month).padStart(2, '0');
       }
+      if (path === '/api/health') return '/data/health.json';
+      if (path === '/api/brands') return '/data/brands.json';
+      if (path === '/api/stores') return '/data/stores.json';
+      if (path === '/api/periods') return '/data/periods.json';
+      if (path === '/api/executive-summary') return '/data/exec/' + pk + '.json';
+      if (path === '/api/month-over-month') return '/data/mom/' + pk + '.json';
+      if (path === '/api/store-performance') return '/data/stores-perf/' + pk + '.json';
+      if (path === '/api/year-end-summary') return '/data/yearend/' + (params.year || '2025') + '.json';
+      if (path.includes('/brands/') && path.endsWith('/report')) {
+        const brand = decodeURIComponent(path.split('/')[3]);
+        const slug = this._brandSlugs[brand] || brand.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        if (pk !== 'all') { const yr = pk.split('-')[0]; return '/data/brands/' + slug + '/report-' + yr + '.json'; }
+        return '/data/brands/' + slug + '/report.json';
+      }
+      if (path.includes('/brands/') && path.endsWith('/facing')) {
+        const brand = decodeURIComponent(path.split('/')[3]);
+        const slug = this._brandSlugs[brand] || brand.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        if (pk !== 'all') { const yr = pk.split('-')[0]; return '/data/brands/' + slug + '/facing-' + yr + '.json'; }
+        return '/data/brands/' + slug + '/facing.json';
+      }
+      if (path.startsWith('/api/master/')) {
+        const tab = path.split('/')[3];
+        if (params.store && this._storeSlugs[params.store]) return '/data/master/' + tab + '/' + this._storeSlugs[params.store] + '.json';
+        if (pk !== 'all') return '/data/master/' + tab + '/' + pk + '.json';
+        return '/data/master/' + tab + '.json';
+      }
+      if (path === '/api/upload/files') return '/data/health.json';
+      return path;
     },
 
     periodParams() {

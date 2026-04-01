@@ -1148,17 +1148,20 @@
                             <span x-text="(row.margin_change_pts > 0 ? '+' : '') + row.margin_change_pts + ' pts'"></span>
                           </span>
                         </template>
-                        <template x-if="momMetric === 'units' && row.y1_units != null && row.y2_units != null">
-                          <span class="delta-pill" :class="row.y2_units > row.y1_units ? 'positive' : row.y2_units < row.y1_units ? 'negative' : 'neutral'">
-                            <span x-text="row.y2_units > row.y1_units ? '\u25B2' : row.y2_units < row.y1_units ? '\u25BC' : ''" style="font-size:8px"></span>
-                            <span x-text="fmtPctSigned(row.y1_units ? ((row.y2_units - row.y1_units) / row.y1_units * 100) : 0)"></span>
+                        <template x-if="momMetric === 'units' && momData.comparison_years?.length >= 2">
+                          <span x-data="{ get prev() { return row['y'+momData.comparison_years[momData.comparison_years.length-2]+'_units']; }, get cur() { return row['y'+momData.comparison_years[momData.comparison_years.length-1]+'_units']; } }"
+                                x-show="prev != null && cur != null"
+                                class="delta-pill" :class="cur > prev ? 'positive' : cur < prev ? 'negative' : 'neutral'">
+                            <span x-text="cur > prev ? '\u25B2' : cur < prev ? '\u25BC' : ''" style="font-size:8px"></span>
+                            <span x-text="fmtPctSigned(prev ? ((cur - prev) / prev * 100) : 0)"></span>
                           </span>
                         </template>
-                        <template x-if="momMetric === 'full_price'">
-                          <span x-show="row.y1_full_price_pct != null && row.y2_full_price_pct != null"
-                                class="delta-pill" :class="(row.y2_full_price_pct - row.y1_full_price_pct) > 0 ? 'positive' : (row.y2_full_price_pct - row.y1_full_price_pct) < 0 ? 'negative' : 'neutral'">
-                            <span x-text="(row.y2_full_price_pct - row.y1_full_price_pct) > 0 ? '+' : ''" style="font-size:8px"></span>
-                            <span x-text="((row.y2_full_price_pct - row.y1_full_price_pct) > 0 ? '+' : '') + (row.y2_full_price_pct - row.y1_full_price_pct).toFixed(1) + ' pts'"></span>
+                        <template x-if="momMetric === 'full_price' && momData.comparison_years?.length >= 2">
+                          <span x-data="{ get prev() { return row['y'+momData.comparison_years[momData.comparison_years.length-2]+'_full_price_pct']; }, get cur() { return row['y'+momData.comparison_years[momData.comparison_years.length-1]+'_full_price_pct']; } }"
+                                x-show="prev != null && cur != null"
+                                class="delta-pill" :class="(cur - prev) > 0 ? 'positive' : (cur - prev) < 0 ? 'negative' : 'neutral'">
+                            <span x-text="(cur - prev) > 0 ? '+' : ''" style="font-size:8px"></span>
+                            <span x-text="((cur - prev) > 0 ? '+' : '') + (cur - prev).toFixed(1) + ' pts'"></span>
                           </span>
                         </template>
                       </td>
@@ -4005,30 +4008,33 @@ function dashboard() {
             raw.best_month = raw.months.reduce((b,m) => m.revenue > (b.revenue||0) ? m : b, {});
             raw.best_month = {label: raw.best_month.label, revenue: raw.best_month.revenue};
           }
-          // Rebuild YoY: pick last two distinct years in filtered range
+          // Rebuild YoY: use all distinct years in filtered range
           const years = [...new Set(raw.months.map(m => m.year))].sort((a,b) => a-b);
+          raw.comparison_years = years;
           if (years.length >= 2) {
-            const y1 = years[years.length - 2], y2 = years[years.length - 1];
             const byYM = {};
             for (const m of raw.months) byYM[m.year * 100 + m.month_num] = m;
             const yoy = [];
             const MN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            const yLast = years[years.length - 1], yPrev = years[years.length - 2];
             for (let mn = 1; mn <= 12; mn++) {
-              const d1 = byYM[y1 * 100 + mn], d2 = byYM[y2 * 100 + mn];
-              if (!d1 && !d2) continue;
-              yoy.push({
-                month_label: MN[mn-1], month_num: mn, y1, y2,
-                y1_revenue: d1?.revenue ?? null, y2_revenue: d2?.revenue ?? null,
-                y1_profit: d1?.profit ?? null, y2_profit: d2?.profit ?? null,
-                y1_margin: d1 ? Math.round(d1.margin*10)/10 : null, y2_margin: d2 ? Math.round(d2.margin*10)/10 : null,
-                y1_units: d1?.units ?? null, y2_units: d2?.units ?? null,
-                y1_full_price_pct: d1 ? Math.round(d1.full_price_pct*10)/10 : null,
-                y2_full_price_pct: d2 ? Math.round(d2.full_price_pct*10)/10 : null,
-                revenue_change_pct: d1 && d2 && d1.revenue ? Math.round((d2.revenue - d1.revenue) / d1.revenue * 10000) / 100 : null,
-                profit_change_pct: d1 && d2 && d1.profit ? Math.round((d2.profit - d1.profit) / d1.profit * 10000) / 100 : null,
-                margin_change_pts: d1 && d2 ? Math.round((d2.margin - d1.margin) * 10) / 10 : null,
-                full_price_change_pts: d1 && d2 ? Math.round((d2.full_price_pct - d1.full_price_pct) * 10) / 10 : null,
-              });
+              const hasAny = years.some(y => byYM[y * 100 + mn]);
+              if (!hasAny) continue;
+              const row = { month_label: MN[mn-1], month_num: mn };
+              for (const y of years) {
+                const d = byYM[y * 100 + mn];
+                row[`y${y}_revenue`] = d?.revenue ?? null;
+                row[`y${y}_profit`] = d?.profit ?? null;
+                row[`y${y}_margin`] = d ? Math.round(d.margin*10)/10 : null;
+                row[`y${y}_units`] = d?.units ?? null;
+                row[`y${y}_full_price_pct`] = d ? Math.round(d.full_price_pct*10)/10 : null;
+              }
+              const dPrev = byYM[yPrev * 100 + mn], dLast = byYM[yLast * 100 + mn];
+              row.revenue_change_pct = dPrev && dLast && dPrev.revenue ? Math.round((dLast.revenue - dPrev.revenue) / dPrev.revenue * 10000) / 100 : null;
+              row.profit_change_pct = dPrev && dLast && dPrev.profit ? Math.round((dLast.profit - dPrev.profit) / dPrev.profit * 10000) / 100 : null;
+              row.margin_change_pts = dPrev && dLast ? Math.round((dLast.margin - dPrev.margin) * 10) / 10 : null;
+              row.full_price_change_pts = dPrev && dLast ? Math.round((dLast.full_price_pct - dPrev.full_price_pct) * 10) / 10 : null;
+              yoy.push(row);
             }
             raw.yoy_comparison = yoy;
           } else {

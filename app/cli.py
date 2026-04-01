@@ -483,7 +483,11 @@ def _generate_static_index(out: Path):
       const exB = Object.values(exMap); const exT = exB.reduce((a,b)=>a+b.count,0); const exV = exB.reduce((a,b)=>a+b.value,0); const exU = exB.reduce((a,b)=>a+b.units,0);
       const best = trend.reduce((a,t)=>t.revenue>a.revenue?t:a,trend[0]);
       const worst = trend.reduce((a,t)=>t.revenue<a.revenue?t:a,trend[0]);
-      return {period_label:this.periodLabel,kpis:{total_revenue:totRev,net_profit:totProfit,blended_margin:totRev?Math.round(totProfit/totRev*1000)/10:0,total_units:totUnits,total_transactions:totTx,total_discounts:totDisc,full_price_pct:Math.round(fpPct*10)/10,avg_basket:totTx?Math.round(totRev/totTx*100)/100:0,unique_customers:totCust,stores:valid[0]?.kpis?.stores||7,brands:valid[0]?.kpis?.brands||312},secondary_kpis:{avg_monthly_revenue:Math.round(totRev/n),avg_monthly_profit:Math.round(totProfit/n),best_month:{label:best?.label,revenue:best?.revenue},worst_month:{label:worst?.label,revenue:worst?.revenue}},monthly_trend:trend,top_categories:cats,top_stores:stores,sales_mix:salesMix,excluded_transactions:{total:exT,total_value:exV,total_units:exU,breakdown:exB},insights:valid[valid.length-1]?.insights||[]};
+      const totCogs = valid.reduce((a,d) => a + (d.pnl?.cogs || 0), 0);
+      const grossProfit = totRev - totCogs;
+      const netAfterDisc = totRev - totDisc;
+      const pnl = {revenue:totRev,cogs:totCogs,gross_profit:grossProfit,gross_margin_pct:totRev?Math.round(grossProfit/totRev*1000)/10:0,total_discounts:totDisc,net_after_discounts:netAfterDisc};
+      return {period_label:this.periodLabel,kpis:{total_revenue:totRev,net_profit:totProfit,blended_margin:totRev?Math.round(totProfit/totRev*1000)/10:0,total_units:totUnits,total_transactions:totTx,total_discounts:totDisc,full_price_pct:Math.round(fpPct*10)/10,avg_basket:totTx?Math.round(totRev/totTx*100)/100:0,unique_customers:totCust,stores:valid[0]?.kpis?.stores||7,brands:valid[0]?.kpis?.brands||312},pnl:pnl,secondary_kpis:{avg_monthly_revenue:Math.round(totRev/n),avg_monthly_profit:Math.round(totProfit/n),best_month:{label:best?.label,revenue:best?.revenue},worst_month:{label:worst?.label,revenue:worst?.revenue}},monthly_trend:trend,top_categories:cats,top_stores:stores,sales_mix:salesMix,excluded_transactions:{total:exT,total_value:exV,total_units:exU,breakdown:exB},insights:valid[valid.length-1]?.insights||[]};
     },""",
     )
 

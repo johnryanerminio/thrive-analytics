@@ -438,64 +438,79 @@ def month_over_month(store: DataStore, period: PeriodFilter | None) -> dict:
     best = max(monthly, key=lambda m: m["revenue"]) if monthly else None
     worst = min(monthly, key=lambda m: m["revenue"]) if monthly else None
 
-    # Side-by-side YoY comparison: use the two most recent years
-    # Only compare months that exist in the current (most recent) year
-    # so partial-year data (e.g. 2026 Q1) compares against the same
-    # months in the prior year, not the full prior year.
+    # Multi-year comparison: show all available years side by side
+    # Fetch any missing years from the full dataset
+    from app.data.schemas import PeriodType
     years = sorted(set(m["year"] for m in monthly))
-    yoy_comparison = []
-    if len(years) >= 2:
-        y1, y2 = years[-2], years[-1]
-    elif len(years) == 1:
-        y2 = years[0]
-        y1 = y2 - 1
-        # Fetch prior year data from unfiltered store
-        from app.data.schemas import PeriodType
-        prior_period = PeriodFilter(period_type=PeriodType.YEAR, year=y1)
+    latest_year = years[-1] if years else None
+
+    # If we only have 1 year, try to fetch prior years
+    if len(years) == 1:
+        for prior_y in [years[0] - 1, years[0] - 2]:
+            prior_period = PeriodFilter(period_type=PeriodType.YEAR, year=prior_y)
+            prior_regular = store.get_regular(prior_period)
+            if not prior_regular.empty:
+                prior_monthly = _monthly_groups(prior_regular)
+                for m in prior_monthly:
+                    by_ym[(m["year"], m["month_num"])] = m
+                if prior_y not in years:
+                    years.append(prior_y)
+        years = sorted(years)
+    elif len(years) == 2:
+        # Try to fetch one more prior year
+        prior_y = years[0] - 1
+        prior_period = PeriodFilter(period_type=PeriodType.YEAR, year=prior_y)
         prior_regular = store.get_regular(prior_period)
         if not prior_regular.empty:
             prior_monthly = _monthly_groups(prior_regular)
             for m in prior_monthly:
                 by_ym[(m["year"], m["month_num"])] = m
-        else:
-            y1 = None  # no prior year data
-    else:
-        y1 = None
+            if prior_y not in years:
+                years.insert(0, prior_y)
 
-    # Determine which months the current year actually has data for
-    y2_months = {m["month_num"] for m in monthly if m["year"] == y2} if y1 is not None else set()
+    # Build multi-year comparison rows
+    # Only include months where the latest year has data (partial-year safe)
+    latest_months = {m["month_num"] for m in monthly if m["year"] == latest_year} if latest_year else set()
 
-    if y1 is not None:
-        for mn in range(1, 13):
-            d1 = by_ym.get((y1, mn))
-            d2 = by_ym.get((y2, mn))
-            # Only include months where the current year has data,
-            # so we don't compare a partial year against a full year
-            if mn not in y2_months:
+    yoy_comparison = []
+    for mn in range(1, 13):
+        if latest_year and mn not in latest_months:
+            # Check if ANY year has data for this month
+            has_any = any(by_ym.get((y, mn)) for y in years)
+            if not has_any:
                 continue
-            if not d1 and not d2:
-                continue
-            row = {
-                "month_label": _MONTH_NAMES[mn],
-                "month_num": mn,
-                "y1": y1,
-                "y2": y2,
-                "y1_revenue": d1["revenue"] if d1 else None,
-                "y1_profit": d1["profit"] if d1 else None,
-                "y1_margin": round(d1["margin"], 1) if d1 else None,
-                "y1_units": d1["units"] if d1 else None,
-                "y2_revenue": d2["revenue"] if d2 else None,
-                "y2_profit": d2["profit"] if d2 else None,
-                "y2_margin": round(d2["margin"], 1) if d2 else None,
-                "y2_units": d2["units"] if d2 else None,
-                "y1_full_price_pct": round(d1["full_price_pct"], 1) if d1 else None,
-                "y2_full_price_pct": round(d2["full_price_pct"], 1) if d2 else None,
-                "revenue_change_pct": pct_change(d2["revenue"], d1["revenue"]) if d1 and d2 else None,
-                "profit_change_pct": pct_change(d2["profit"], d1["profit"]) if d1 and d2 else None,
-                "margin_change_pts": round(d2["margin"] - d1["margin"], 1) if d1 and d2 else None,
-                "full_price_change_pts": round(d2["full_price_pct"] - d1["full_price_pct"], 1) if d1 and d2 else None,
-            }
-            yoy_comparison.append(row)
+        row = {"month_label": _MONTH_NAMES[mn], "month_num": mn}
+        for y in years:
+            d = by_ym.get((y, mn))
+            row[f"y{y}_revenue"] = d["revenue"] if d else None
+            row[f"y{y}_profit"] = d["profit"] if d else None
+            row[f"y{y}_margin"] = round(d["margin"], 1) if d else None
+            row[f"y{y}_units"] = d["units"] if d else None
+            row[f"y{y}_full_price_pct"] = round(d["full_price_pct"], 1) if d else None
+        # Change vs prior year (latest vs second-latest)
+        if len(years) >= 2:
+            d_cur = by_ym.get((years[-1], mn))
+            d_prev = by_ym.get((years[-2], mn))
+            row["revenue_change_pct"] = pct_change(d_cur["revenue"], d_prev["revenue"]) if d_cur and d_prev else None
+            row["profit_change_pct"] = pct_change(d_cur["profit"], d_prev["profit"]) if d_cur and d_prev else None
+            row["margin_change_pts"] = round(d_cur["margin"] - d_prev["margin"], 1) if d_cur and d_prev else None
+        yoy_comparison.append(row)
+
+    # Also keep backward-compatible y1/y2 fields for existing frontend code
+    if len(years) >= 2:
+        for row in yoy_comparison:
+            row["y1"] = years[-2]
+            row["y2"] = years[-1]
+            row["y1_revenue"] = row.get(f"y{years[-2]}_revenue")
+            row["y1_profit"] = row.get(f"y{years[-2]}_profit")
+            row["y1_margin"] = row.get(f"y{years[-2]}_margin")
+            row["y1_units"] = row.get(f"y{years[-2]}_units")
+            row["y1_full_price_pct"] = row.get(f"y{years[-2]}_full_price_pct")
+            row["y2_revenue"] = row.get(f"y{years[-1]}_revenue")
+            row["y2_profit"] = row.get(f"y{years[-1]}_profit")
+            row["y2_margin"] = row.get(f"y{years[-1]}_margin")
+            row["y2_units"] = row.get(f"y{years[-1]}_units")
+            row["y2_full_price_pct"] = row.get(f"y{years[-1]}_full_price_pct")
 
     return sanitize_for_json({
         "period_label": label,
@@ -504,6 +519,7 @@ def month_over_month(store: DataStore, period: PeriodFilter | None) -> dict:
         "best_month": {"label": best["label"], "revenue": best["revenue"]} if best else None,
         "worst_month": {"label": worst["label"], "revenue": worst["revenue"]} if worst else None,
         "yoy_comparison": yoy_comparison,
+        "comparison_years": years,
     })
 
 

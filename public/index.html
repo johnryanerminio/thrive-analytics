@@ -1060,42 +1060,44 @@
               </template>
             </div>
 
-            <!-- Annual Summary Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6" x-show="momData.yoy_comparison?.length">
-              <!-- Year 1 -->
-              <div class="kpi-card">
-                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1" x-text="momData.yoy_comparison?.[0]?.y1 + ' Total'"></div>
-                <div class="text-2xl font-bold text-[#94a3b8] font-mono"
-                     x-text="momMetric === 'revenue' ? fmtCurrency(momData.yoy_comparison?.reduce((s,r) => s + (r.y1_revenue||0), 0)) :
-                             momMetric === 'profit' ? fmtCurrency(momData.yoy_comparison?.reduce((s,r) => s + (r.y1_profit||0), 0)) :
-                             momMetric === 'units' ? fmtN(momData.yoy_comparison?.reduce((s,r) => s + (r.y1_units||0), 0)) :
-                             momMetric === 'margin' ? fmtPct(momData.yoy_comparison?.reduce((s,r) => s + (r.y1_margin||0), 0) / momData.yoy_comparison?.filter(r=>r.y1_margin!=null).length) :
-                             fmtPct(momData.yoy_comparison?.reduce((s,r) => s + (r.y1_full_price_pct||0), 0) / momData.yoy_comparison?.filter(r=>r.y1_full_price_pct!=null).length)"></div>
-              </div>
-              <!-- Year 2 -->
-              <div class="kpi-card">
-                <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1" x-text="momData.yoy_comparison?.[0]?.y2 + ' Total'"></div>
-                <div class="text-2xl font-bold text-[#f8fafc] font-mono"
-                     x-text="momMetric === 'revenue' ? fmtCurrency(momData.yoy_comparison?.reduce((s,r) => s + (r.y2_revenue||0), 0)) :
-                             momMetric === 'profit' ? fmtCurrency(momData.yoy_comparison?.reduce((s,r) => s + (r.y2_profit||0), 0)) :
-                             momMetric === 'units' ? fmtN(momData.yoy_comparison?.reduce((s,r) => s + (r.y2_units||0), 0)) :
-                             momMetric === 'margin' ? fmtPct(momData.yoy_comparison?.reduce((s,r) => s + (r.y2_margin||0), 0) / momData.yoy_comparison?.filter(r=>r.y2_margin!=null).length) :
-                             fmtPct(momData.yoy_comparison?.reduce((s,r) => s + (r.y2_full_price_pct||0), 0) / momData.yoy_comparison?.filter(r=>r.y2_full_price_pct!=null).length)"></div>
-              </div>
+            <!-- Annual Summary Cards — one per year -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6" x-show="momData.comparison_years?.length">
+              <template x-for="(yr, yi) in (momData.comparison_years || [])" :key="yr">
+                <div class="kpi-card">
+                  <div class="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-1" x-text="yr + ' Total'"></div>
+                  <div class="text-2xl font-bold font-mono"
+                       :class="yi === (momData.comparison_years?.length - 1) ? 'text-[#f8fafc]' : 'text-[#64748b]'"
+                       x-text="(() => {
+                         const key = momMetric === 'full_price' ? 'full_price_pct' : momMetric;
+                         const rows = momData.yoy_comparison || [];
+                         if (momMetric === 'margin' || momMetric === 'full_price') {
+                           const vals = rows.map(r => r['y'+yr+'_'+key]).filter(v => v != null);
+                           return vals.length ? fmtPct(vals.reduce((a,b)=>a+b,0)/vals.length) : '-';
+                         }
+                         const sum = rows.reduce((s,r) => s + (r['y'+yr+'_'+key]||0), 0);
+                         return momMetric === 'units' ? fmtN(sum) : fmtCurrency(sum);
+                       })()"></div>
+                </div>
+              </template>
             </div>
 
-            <!-- 12-Row Comparison Table -->
+            <!-- Multi-Year Comparison Table -->
             <div class="chart-container mb-6 overflow-x-auto">
               <h3 class="text-sm font-semibold text-[#f8fafc] mb-4">
-                <span x-text="momData.yoy_comparison?.[0]?.y1"></span> vs <span x-text="momData.yoy_comparison?.[0]?.y2"></span>
+                <template x-for="(yr, yi) in (momData.comparison_years || [])" :key="'h'+yr">
+                  <span>
+                    <span x-text="yr"></span><span x-show="yi < momData.comparison_years.length - 1"> vs </span>
+                  </span>
+                </template>
                 — <span class="text-gold" x-text="{revenue:'Revenue',margin:'Margin',profit:'Profit',units:'Units',full_price:'Full Price %'}[momMetric]"></span>
               </h3>
               <table class="data-table sticky-col">
                 <thead>
                   <tr>
                     <th>Month</th>
-                    <th class="text-right" x-text="momData.yoy_comparison?.[0]?.y1"></th>
-                    <th class="text-right" x-text="momData.yoy_comparison?.[0]?.y2"></th>
+                    <template x-for="yr in (momData.comparison_years || [])" :key="'th'+yr">
+                      <th class="text-right" x-text="yr"></th>
+                    </template>
                     <th class="text-right">Change</th>
                   </tr>
                 </thead>
@@ -1103,35 +1105,33 @@
                   <template x-for="(row, idx) in (momData.yoy_comparison || [])" :key="idx">
                     <tr>
                       <td class="font-medium text-[#94a3b8]" x-text="row.month_label"></td>
-                      <!-- Y1 value (dimmed) -->
-                      <td class="text-right text-[#64748b]"
-                          x-text="momMetric === 'revenue' ? (row.y1_revenue != null ? fmtCurrency(row.y1_revenue) : '-') :
-                                  momMetric === 'profit' ? (row.y1_profit != null ? fmtCurrency(row.y1_profit) : '-') :
-                                  momMetric === 'units' ? (row.y1_units != null ? fmtN(row.y1_units) : '-') :
-                                  momMetric === 'margin' ? (row.y1_margin != null ? fmtPct(row.y1_margin) : '-') :
-                                  (row.y1_full_price_pct != null ? fmtPct(row.y1_full_price_pct) : '-')"></td>
-                      <!-- Y2 value (emphasized) -->
-                      <td class="text-right font-semibold text-[#f8fafc]"
-                          x-text="momMetric === 'revenue' ? (row.y2_revenue != null ? fmtCurrency(row.y2_revenue) : '-') :
-                                  momMetric === 'profit' ? (row.y2_profit != null ? fmtCurrency(row.y2_profit) : '-') :
-                                  momMetric === 'units' ? (row.y2_units != null ? fmtN(row.y2_units) : '-') :
-                                  momMetric === 'margin' ? (row.y2_margin != null ? fmtPct(row.y2_margin) : '-') :
-                                  (row.y2_full_price_pct != null ? fmtPct(row.y2_full_price_pct) : '-')"></td>
-                      <!-- Delta pill -->
+                      <template x-for="(yr, yi) in (momData.comparison_years || [])" :key="'c'+yr+idx">
+                        <td class="text-right"
+                            :class="yi === (momData.comparison_years?.length - 1) ? 'font-semibold text-[#f8fafc]' : 'text-[#64748b]'"
+                            x-text="(() => {
+                              const key = momMetric === 'full_price' ? 'full_price_pct' : momMetric;
+                              const v = row['y'+yr+'_'+key];
+                              if (v == null) return '-';
+                              if (momMetric === 'margin' || momMetric === 'full_price') return fmtPct(v);
+                              if (momMetric === 'units') return fmtN(v);
+                              return fmtCurrency(v);
+                            })()"></td>
+                      </template>
+                      <!-- Delta pill (latest vs prior year) -->
                       <td class="text-right">
-                        <template x-if="momMetric === 'revenue' && row.revenue_change_pct != null">
+                        <template x-if="row.revenue_change_pct != null && momMetric === 'revenue'">
                           <span class="delta-pill" :class="row.revenue_change_pct > 0 ? 'positive' : row.revenue_change_pct < 0 ? 'negative' : 'neutral'">
                             <span x-text="row.revenue_change_pct > 0 ? '\u25B2' : row.revenue_change_pct < 0 ? '\u25BC' : ''" style="font-size:8px"></span>
                             <span x-text="fmtPctSigned(row.revenue_change_pct)"></span>
                           </span>
                         </template>
-                        <template x-if="momMetric === 'profit' && row.profit_change_pct != null">
+                        <template x-if="row.profit_change_pct != null && momMetric === 'profit'">
                           <span class="delta-pill" :class="row.profit_change_pct > 0 ? 'positive' : row.profit_change_pct < 0 ? 'negative' : 'neutral'">
                             <span x-text="row.profit_change_pct > 0 ? '\u25B2' : row.profit_change_pct < 0 ? '\u25BC' : ''" style="font-size:8px"></span>
                             <span x-text="fmtPctSigned(row.profit_change_pct)"></span>
                           </span>
                         </template>
-                        <template x-if="momMetric === 'margin' && row.margin_change_pts != null">
+                        <template x-if="row.margin_change_pts != null && momMetric === 'margin'">
                           <span class="delta-pill" :class="row.margin_change_pts > 0 ? 'positive' : row.margin_change_pts < 0 ? 'negative' : 'neutral'">
                             <span x-text="row.margin_change_pts > 0 ? '\u25B2' : row.margin_change_pts < 0 ? '\u25BC' : ''" style="font-size:8px"></span>
                             <span x-text="(row.margin_change_pts > 0 ? '+' : '') + row.margin_change_pts + ' pts'"></span>
@@ -1143,10 +1143,11 @@
                             <span x-text="fmtPctSigned(row.y1_units ? ((row.y2_units - row.y1_units) / row.y1_units * 100) : 0)"></span>
                           </span>
                         </template>
-                        <template x-if="momMetric === 'full_price' && row.full_price_change_pts != null">
-                          <span class="delta-pill" :class="row.full_price_change_pts > 0 ? 'positive' : row.full_price_change_pts < 0 ? 'negative' : 'neutral'">
-                            <span x-text="row.full_price_change_pts > 0 ? '\u25B2' : row.full_price_change_pts < 0 ? '\u25BC' : ''" style="font-size:8px"></span>
-                            <span x-text="(row.full_price_change_pts > 0 ? '+' : '') + row.full_price_change_pts + ' pts'"></span>
+                        <template x-if="momMetric === 'full_price'">
+                          <span x-show="row.y1_full_price_pct != null && row.y2_full_price_pct != null"
+                                class="delta-pill" :class="(row.y2_full_price_pct - row.y1_full_price_pct) > 0 ? 'positive' : (row.y2_full_price_pct - row.y1_full_price_pct) < 0 ? 'negative' : 'neutral'">
+                            <span x-text="(row.y2_full_price_pct - row.y1_full_price_pct) > 0 ? '+' : ''" style="font-size:8px"></span>
+                            <span x-text="((row.y2_full_price_pct - row.y1_full_price_pct) > 0 ? '+' : '') + (row.y2_full_price_pct - row.y1_full_price_pct).toFixed(1) + ' pts'"></span>
                           </span>
                         </template>
                       </td>
@@ -1154,32 +1155,6 @@
                   </template>
                 </tbody>
               </table>
-            </div>
-
-            <!-- Dynamic Insight -->
-            <div class="chart-container mb-6 border-l-[3px] border-l-gold" x-show="momData.yoy_comparison?.length > 0">
-              <div class="text-sm text-[#cbd5e1]">
-                <template x-if="momMetric === 'revenue'">
-                  <span>Revenue
-                    <span :class="momData.yoy_comparison?.reduce((s,r) => s + (r.y2_revenue||0), 0) >= momData.yoy_comparison?.reduce((s,r) => s + (r.y1_revenue||0), 0) ? 'text-success' : 'text-destructive'"
-                          x-text="momData.yoy_comparison?.reduce((s,r) => s + (r.y2_revenue||0), 0) >= momData.yoy_comparison?.reduce((s,r) => s + (r.y1_revenue||0), 0) ? 'increased' : 'decreased'"></span>
-                    year-over-year. The strongest month was
-                    <span class="text-[#f8fafc] font-semibold" x-text="momData.yoy_comparison?.reduce((best, r) => (r.y2_revenue||0) > (best.y2_revenue||0) ? r : best, {})?.month_label"></span>.
-                  </span>
-                </template>
-                <template x-if="momMetric === 'margin'">
-                  <span>Margin trend shows the impact of pricing and cost management decisions across the year. Consistently higher margins in the current year indicate improved operational efficiency.</span>
-                </template>
-                <template x-if="momMetric === 'profit'">
-                  <span>Profit performance reflects the combined effect of revenue and margin changes. Focus on months where profit diverges from revenue trends to identify margin opportunities.</span>
-                </template>
-                <template x-if="momMetric === 'units'">
-                  <span>Unit volume tracks customer demand independent of price changes. Compare against revenue trends to understand whether growth is volume-driven or price-driven.</span>
-                </template>
-                <template x-if="momMetric === 'full_price'">
-                  <span>Full price percentage measures how much revenue comes from non-discounted sales. Higher full price % generally correlates with better margins.</span>
-                </template>
-              </div>
             </div>
 
           </div>

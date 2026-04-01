@@ -113,7 +113,11 @@ INTERNAL_BRAND_COSTS = {
     "GREEN & GOLD": {"default": 8.63,  "pre_roll": 4.00},
     "FADE":         {"cart": 10.61, "disposable": 12.44},
     "RETREAT":      {"cart": 10.61, "disposable": 12.44},
+    "SRENE":        {"cart": 10.76, "flower_eighth": 13.00, "flower_half_oz": 25.00},
 }
+
+FLOWER_CATEGORIES = {"FLOWER"}
+FLOWER_HALF_OZ_KEYWORDS = {"HALF OUNCE", "HALF OZ", "14G"}
 
 # "conditional" = only replace when cost_per_item < $1
 # "unconditional" = replace ALL costs regardless of current value

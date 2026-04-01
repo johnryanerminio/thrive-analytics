@@ -11,7 +11,7 @@ import pandas as pd
 from app.config import (
     INBOX_FOLDER, SALES_KEYWORDS, BT_PERFORMANCE_KEYWORDS, CUSTOMER_KEYWORDS,
     INTERNAL_BRAND_COSTS, COST_CORRECTION_YEARS, PRE_ROLL_CATEGORIES,
-    CART_CATEGORIES, DISPOSABLE_CATEGORIES,
+    CART_CATEGORIES, DISPOSABLE_CATEGORIES, FLOWER_CATEGORIES, FLOWER_HALF_OZ_KEYWORDS,
 )
 from app.data.normalize import normalize_columns, normalize_categories, classify_transaction, classify_deal_type
 
@@ -139,6 +139,10 @@ def apply_internal_cost_corrections(df: pd.DataFrame) -> pd.DataFrame:
     is_preroll = df["category_clean"].isin(PRE_ROLL_CATEGORIES)
     is_cart = df["category_clean"].isin(CART_CATEGORIES)
     is_disposable = df["category_clean"].isin(DISPOSABLE_CATEGORIES)
+    is_flower = df["category_clean"].isin(FLOWER_CATEGORIES)
+    # Detect half-ounce products by keyword in product name
+    product_upper = df["product"].str.upper() if "product" in df.columns else pd.Series("", index=df.index)
+    is_half_oz = product_upper.apply(lambda p: any(kw in p for kw in FLOWER_HALF_OZ_KEYWORDS))
 
     for brand_upper, prices in INTERNAL_BRAND_COSTS.items():
         brand_mask = df["brand_clean"].str.upper() == brand_upper
@@ -157,8 +161,28 @@ def apply_internal_cost_corrections(df: pd.DataFrame) -> pd.DataFrame:
                 continue
 
             # Build per-unit cost based on which category keys exist in prices
-            # Brands use either default/pre_roll or cart/disposable pricing
-            if "cart" in prices:
+            if "flower_eighth" in prices:
+                # Multi-category pricing (e.g. SRENE: cart + flower with size variants)
+                new_cost_per_unit = pd.Series(0.0, index=df.index, dtype="float32")
+                applicable = pd.Series(False, index=df.index)
+                if "cart" in prices:
+                    new_cost_per_unit[is_cart] = prices["cart"]
+                    applicable = applicable | is_cart
+                if "disposable" in prices:
+                    new_cost_per_unit[is_disposable] = prices["disposable"]
+                    applicable = applicable | is_disposable
+                # Flower: half-ounce vs eighth (default flower)
+                is_flower_half = is_flower & is_half_oz
+                is_flower_eighth = is_flower & ~is_half_oz
+                new_cost_per_unit[is_flower_eighth] = prices["flower_eighth"]
+                new_cost_per_unit[is_flower_half] = prices["flower_half_oz"]
+                applicable = applicable | is_flower
+                # Only correct rows that match applicable categories
+                year_mask = year_mask & applicable
+                count = year_mask.sum()
+                if count == 0:
+                    continue
+            elif "cart" in prices:
                 # Cart/disposable pricing (FADE, RETREAT)
                 new_cost_per_unit = pd.Series(0.0, index=df.index, dtype="float32")
                 new_cost_per_unit[is_cart] = prices["cart"]

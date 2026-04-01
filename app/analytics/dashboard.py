@@ -696,13 +696,15 @@ def year_end_summary(store: DataStore, year: int) -> dict:
     if len(monthly) >= 2:
         first_margin = monthly[0]["margin"]
         last_margin = monthly[-1]["margin"]
+        first_label = monthly[0]["label"]
+        last_label = monthly[-1]["label"]
         delta = last_margin - first_margin
         if delta > 1:
-            key_insights.append({"type": "success", "title": "Margin Improved", "detail": f"{delta:.1f} pts change over the period"})
+            key_insights.append({"type": "success", "title": "Margin Improved", "detail": f"{delta:.1f} pts from {first_label} ({first_margin:.1f}%) to {last_label} ({last_margin:.1f}%)"})
         elif delta < -1:
-            key_insights.append({"type": "warning", "title": "Margin Declined", "detail": f"{abs(delta):.1f} pts decline over the period"})
+            key_insights.append({"type": "warning", "title": "Margin Declined", "detail": f"{abs(delta):.1f} pts from {first_label} ({first_margin:.1f}%) to {last_label} ({last_margin:.1f}%)"})
         else:
-            key_insights.append({"type": "info", "title": "Margin Stable", "detail": f"Less than 1 pt change over the period"})
+            key_insights.append({"type": "info", "title": "Margin Stable", "detail": f"Less than 1 pt change from {first_label} to {last_label}"})
 
     sales_mix = _sales_mix(regular)
     if sales_mix["full_price_pct"] < 30:
@@ -752,6 +754,17 @@ def year_end_summary(store: DataStore, year: int) -> dict:
             "rev_per_unit_current": round(rev_per_unit, 2),
             "rev_per_unit_prev": round(prev_rev_per_unit, 2),
         }
+        # Add YoY margin insight
+        yoy_margin_delta = round(margin - prev_margin, 1)
+        if yoy_margin_delta > 0.5:
+            key_insights.insert(0, {"type": "success", "title": f"Margin Up vs {year - 1}",
+                "detail": f"Blended margin {round(margin, 1)}% vs {prev_margin}% in {year - 1} (+{yoy_margin_delta} pts year-over-year)"})
+        elif yoy_margin_delta < -0.5:
+            key_insights.insert(0, {"type": "warning", "title": f"Margin Down vs {year - 1}",
+                "detail": f"Blended margin {round(margin, 1)}% vs {prev_margin}% in {year - 1} ({yoy_margin_delta} pts year-over-year)"})
+        else:
+            key_insights.insert(0, {"type": "info", "title": f"Margin Flat vs {year - 1}",
+                "detail": f"Blended margin {round(margin, 1)}% vs {prev_margin}% in {year - 1} (unchanged)"})
 
     return sanitize_for_json({
         "year": year,
